@@ -1,11 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 const servicios = useLocalStorage('servicios-barberia', [])
-
 const barberos = ['Ramiro', 'Julian', 'Mario']
-
 const tiposServicio = [
   'Corte Clasico',
   'Corte Moderno',
@@ -14,7 +12,7 @@ const tiposServicio = [
   'Barba',
   'Diseño De Barba',
   'Corte + barba',
-  'cejas',
+  'Cejas',
   'Limpieza Facial'
 ]
 
@@ -26,13 +24,32 @@ const preciosServicio = {
   'Barba': 10000,
   'Diseño De Barba': 15000,
   'Corte + barba': 25000,
-  'cejas': 8000,
+  'Cejas': 8000,
   'Limpieza Facial': 20000
+}
+
+const duracionServicio = {
+  'Corte Clasico': 30,
+  'Corte Moderno': 40,
+  'Corte Degradado': 45,
+  'Corte Infantil': 25,
+  'Barba': 20,
+  'Diseño De Barba': 30,
+  'Corte + barba': 50,
+  'Cejas': 10,
+  'Limpieza Facial': 35
+}
+
+const descansobarbero = {
+  'Ramiro': [1, 2],
+  'Julian': [3, 4],
+  'Mario': [5, 0]
 }
 
 const formulario = ref({
   id: null,
   cliente: '',
+  telefono: '',
   tipoServicio: '',
   barbero: '',
   fecha: '',
@@ -40,6 +57,7 @@ const formulario = ref({
   precio: 0,
   metodoPago: '',
   estadoPago: '',
+  montoAbonado: 0,
   calificacion: 0,
   observaciones: '',
   finalizado: false
@@ -50,54 +68,285 @@ const idEditando = ref(null)
 const mostrarConfirmacion = ref(false)
 const idEliminar = ref(null)
 const mensajeEror = ref('')
-const resumenDia = ref(0)
 const guardando = ref(false)
-
 const mostrarModalFinalizar = ref(false)
 const idFinalizando = ref(null)
 const calificacionFinal = ref(0)
 const observacionesFinal = ref('')
 const guardandoFinalizacion = ref(false)
+const filtroBarbero = ref('Todos')
+
+const resumenDia = computed(() => {
+  let total = 0
+  const hoy = obtenerFechaHoy()
+
+  for (let i = 0; i < servicios.value.length; i++) {
+    const servicio = servicios.value[i]
+
+    if (servicio.fecha === hoy) {
+      if (servicio.estadoPago === 'Pagado') {
+        total += Number(servicio.precio || 0)
+      } else if (servicio.estadoPago === 'abonado') {
+        total += Number(servicio.montoAbonado || 0)
+      }
+    }
+  }
+
+  return total
+})
+
+const serviciosHechosHoy = computed(() => {
+  let cantidad = 0
+  const hoy = obtenerFechaHoy()
+
+  for (let i = 0; i < servicios.value.length; i++) {
+    const servicio = servicios.value[i]
+
+    if (servicio.fecha === hoy && servicio.finalizado === true) {
+      cantidad++
+    }
+  }
+
+  return cantidad
+})
+
+const serviciosReservaHoy = computed(() => {
+  let cantidad = 0
+  const hoy = obtenerFechaHoy()
+
+  for (let i = 0; i < servicios.value.length; i++) {
+    const servicio = servicios.value[i]
+
+    if (servicio.fecha === hoy && servicio.finalizado !== true) {
+      cantidad++
+    }
+  }
+
+  return cantidad
+})
+
+function obtenerListaVisible() {
+  if (filtroBarbero.value === 'Todos') {
+    return servicios.value
+  }
+
+  return servicios.value.filter(function(s) {
+    return s.barbero === filtroBarbero.value
+  })
+}
+
+function obtenerServicioFinalizando() {
+  return servicios.value.find(function(s) {
+    return s.id === idFinalizando.value
+  }) || null
+}
+
+function inicialesCliente(nombre) {
+  return nombre.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
+}
 
 function actualizarPrecio() {
-  formulario.value.precio = preciosServicio[formulario.value.tipoServicio]
+  formulario.value.precio = preciosServicio[formulario.value.tipoServicio] || 0
+}
+
+function formatearPrecio(precio) {
+  return Number(precio || 0).toLocaleString('es-CO')
+}
+
+function calcularSaldoPendiente(servicio) {
+  return Number(servicio.precio || 0) - Number(servicio.montoAbonado || 0)
+}
+
+function esFechaPasada(fechaTexto, horaTexto) {
+  const fechaSeleccionada = new Date(fechaTexto + 'T' + horaTexto)
+  const ahora = new Date()
+  return fechaSeleccionada < ahora
+}
+
+function obtenerFechaMinima() {
+  const hoy = new Date()
+  const anio = hoy.getFullYear()
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0')
+  const dia = String(hoy.getDate()).padStart(2, '0')
+  return anio + '-' + mes + '-' + dia
+}
+
+function obtenerFechaHoy() {
+  const hoy = new Date()
+  const anio = hoy.getFullYear()
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0')
+  const dia = String(hoy.getDate()).padStart(2, '0')
+  return anio + '-' + mes + '-' + dia
+}
+
+function barberodescansaesedia(barbero, fechaTexto) {
+  const fecha = new Date(fechaTexto + 'T00:00:00')
+  const diasemana = fecha.getDay()
+  return descansobarbero[barbero].includes(diasemana)
+}
+
+function horaaminutos(horaTexto) {
+  const partes = horaTexto.split(':')
+  return Number(partes[0]) * 60 + Number(partes[1])
+}
+
+function obtenerbloqueshorario(diasemana) {
+  if (diasemana === 0) {
+    return [{ inicio: '09:00', fin: '12:30' }]
+  }
+
+  if (diasemana === 6) {
+    return [{ inicio: '09:00', fin: '16:00' }]
+  }
+
+  return [
+    { inicio: '08:30', fin: '12:30' },
+    { inicio: '14:00', fin: '18:00' }
+  ]
+}
+
+function obtenerHoraMinima() {
+  if (formulario.value.fecha === '') {
+    return '00:00'
+  }
+
+  const dia = new Date(formulario.value.fecha + 'T00:00:00').getDay()
+  const bloques = obtenerbloqueshorario(dia)
+  return bloques[0].inicio
+}
+
+function obtenerHoraMaxima() {
+  if (formulario.value.fecha === '') {
+    return '23:59'
+  }
+
+  const dia = new Date(formulario.value.fecha + 'T00:00:00').getDay()
+  const bloques = obtenerbloqueshorario(dia)
+  return bloques[bloques.length - 1].fin
+}
+
+function validarHorario() {
+  if (barberodescansaesedia(formulario.value.barbero, formulario.value.fecha)) {
+    return formulario.value.barbero + ' descansa ese día'
+  }
+
+  const fecha = new Date(formulario.value.fecha + 'T00:00:00')
+  const diasemana = fecha.getDay()
+  const bloques = obtenerbloqueshorario(diasemana)
+  const duracion = duracionServicio[formulario.value.tipoServicio]
+  const inicioMinutos = horaaminutos(formulario.value.hora)
+  const finMinutos = inicioMinutos + duracion
+  let cabeEnAlgunBloque = false
+
+  for (let i = 0; i < bloques.length; i++) {
+    const inicioBloque = horaaminutos(bloques[i].inicio)
+    const finBloque = horaaminutos(bloques[i].fin)
+
+    if (inicioMinutos >= inicioBloque && finMinutos <= finBloque) {
+      cabeEnAlgunBloque = true
+      break
+    }
+  }
+
+  if (!cabeEnAlgunBloque) {
+    return 'La hora no cabe en el horario de atención de ese día'
+  }
+
+  return ''
 }
 
 function guardarServicio() {
-  if (formulario.value.cliente.trim() === "") {
-    mensajeEror.value = 'El Nombre Del Cliente Es Obligatorio'
-    return
-  }
-  if (formulario.value.tipoServicio === '') {
-    mensajeEror.value = 'Seleccione Un Tipo De Servicio'
-    return
-  }
-  if (formulario.value.barbero === '') {
-    mensajeEror.value = 'Seleccione Un Barbero'
-    return
-  }
-  if (formulario.value.precio <= 0) {
-    mensajeEror.value = 'El Precio Debe Ser Mayor a 0'
+  mensajeEror.value = ''
+
+  if (!formulario.value.cliente.trim()) {
+    mensajeEror.value = 'Ingrese el nombre del cliente'
     return
   }
 
-  mensajeEror.value = ''
+  if (!formulario.value.telefono.trim()) {
+    mensajeEror.value = 'Ingrese el teléfono del cliente'
+    return
+  }
+
+  if (!formulario.value.tipoServicio) {
+    mensajeEror.value = 'Seleccione un servicio'
+    return
+  }
+
+  if (!formulario.value.barbero) {
+    mensajeEror.value = 'Seleccione un barbero'
+    return
+  }
+
+  if (!formulario.value.fecha) {
+    mensajeEror.value = 'Seleccione una fecha'
+    return
+  }
+
+  if (!formulario.value.hora) {
+    mensajeEror.value = 'Seleccione una hora'
+    return
+  }
+
+  if (!formulario.value.metodoPago) {
+    mensajeEror.value = 'Seleccione el método de pago'
+    return
+  }
+
+  if (!formulario.value.estadoPago) {
+    mensajeEror.value = 'Seleccione el estado del pago'
+    return
+  }
+
+  if (esFechaPasada(formulario.value.fecha, formulario.value.hora)) {
+    mensajeEror.value = 'No puede seleccionar una fecha u hora pasada'
+    return
+  }
+
+  if (formulario.value.estadoPago === 'abonado' && Number(formulario.value.montoAbonado || 0) <= 0) {
+    mensajeEror.value = 'Ingrese el valor del abono'
+    return
+  }
+
+  if (formulario.value.estadoPago === 'abonado' && Number(formulario.value.montoAbonado) >= Number(formulario.value.precio)) {
+    mensajeEror.value = 'El abono debe ser menor al precio total'
+    return
+  }
+
+  const errorHorario = validarHorario()
+
+  if (errorHorario) {
+    mensajeEror.value = errorHorario
+    return
+  }
+
   guardando.value = true
 
-  // simula que esta guardando en un servidor antes de escribirlo de verdad en el localStorage
   setTimeout(() => {
+    if (formulario.value.estadoPago !== 'abonado') {
+      formulario.value.montoAbonado = 0
+    }
+
     if (idEditando.value === null) {
-      formulario.value.id = Date.now()
-      formulario.value.finalizado = false
-      servicios.value.push({ ...formulario.value })
+      const nuevoServicio = {
+        ...formulario.value,
+        id: Date.now(),
+        finalizado: false
+      }
+
+      servicios.value.push(nuevoServicio)
     } else {
       for (let i = 0; i < servicios.value.length; i++) {
         if (servicios.value[i].id === idEditando.value) {
-          servicios.value[i] = { ...formulario.value }
+          servicios.value[i] = {
+            ...formulario.value,
+            id: idEditando.value
+          }
           break
         }
       }
     }
+
     guardando.value = false
     mostrarmodal.value = false
     limpiarFormulario()
@@ -108,6 +357,7 @@ function limpiarFormulario() {
   formulario.value = {
     id: null,
     cliente: '',
+    telefono: '',
     tipoServicio: '',
     barbero: '',
     fecha: '',
@@ -115,27 +365,30 @@ function limpiarFormulario() {
     precio: 0,
     metodoPago: '',
     estadoPago: '',
+    montoAbonado: 0,
     calificacion: 0,
     observaciones: '',
     finalizado: false
   }
+
   idEditando.value = null
   mensajeEror.value = ''
 }
 
 function abrirModalNuevo() {
   limpiarFormulario()
+  formulario.value.fecha = obtenerFechaMinima()
   mostrarmodal.value = true
 }
 
 function abrirModalEditar(servicio) {
   formulario.value = { ...servicio }
   idEditando.value = servicio.id
+  mensajeEror.value = ''
   mostrarmodal.value = true
 }
 
 function cerrarModal() {
-  if (guardando.value) return
   mostrarmodal.value = false
   limpiarFormulario()
 }
@@ -152,6 +405,7 @@ function confirmarEliminacion() {
       break
     }
   }
+
   mostrarConfirmacion.value = false
   idEliminar.value = null
 }
@@ -164,18 +418,19 @@ function abrirFinalizar(servicio) {
 }
 
 function ponerCalificacion(estrella) {
-  if (guardandoFinalizacion.value) return
   calificacionFinal.value = estrella
 }
 
 function cerrarFinalizar() {
-  if (guardandoFinalizacion.value) return
   mostrarModalFinalizar.value = false
   idFinalizando.value = null
+  calificacionFinal.value = 0
+  observacionesFinal.value = ''
 }
 
 function guardarFinalizacion() {
   guardandoFinalizacion.value = true
+
   setTimeout(() => {
     for (let i = 0; i < servicios.value.length; i++) {
       if (servicios.value[i].id === idFinalizando.value) {
@@ -185,459 +440,1166 @@ function guardarFinalizacion() {
         break
       }
     }
+
     guardandoFinalizacion.value = false
     mostrarModalFinalizar.value = false
     idFinalizando.value = null
   }, 1500)
 }
-
-function verResumenDia() {
-  let total = 0
-  const hoy = new Date().toISOString().split('T')[0]
-  for (let i = 0; i < servicios.value.length; i++) {
-    if (servicios.value[i].fecha === hoy) {
-      total += Number(servicios.value[i].precio)
-    }
-  }
-  resumenDia.value = total
-}
 </script>
 
 <template>
-  <div class="nav">
-    <h1 class="titulo_nav">GALE</h1>
-    <p class="subtitulo_nav">Barber - Studio</p>
-  </div>
 
-  <div class="inf">
-    <p>Gestiona los servicios de tu barbería, fácil y rápido</p>
-  </div>
+  <div class="gale-app">
 
-  <button class="btn-nuevo" @click="abrirModalNuevo">
-    + Nuevo Servicio
-  </button>
+    <aside class="sidebar">
 
-  <div class="resumen">
-    <button @click="verResumenDia">Ver resumen del día</button>
-    <p>Total vendido hoy: ${{ resumenDia }}</p>
-  </div>
+      <div class="brand">
 
-  <h2 class="titulo-seccion" v-if="servicios.length > 0">Servicios Registrados</h2>
-  <p class="sin-registros" v-if="servicios.length === 0">
-    Aún no hay servicios registrados. ¡Agrega el primero!
-  </p>
+        <div class="brand-mark">✂</div>
 
-  <div class="servicios">
-    <div v-for="servicio in servicios" :key="servicio.id" class="tarjeta"
-      :class="{
-        pendiente: servicio.estadoPago === 'Pendiente',
-        fiado: servicio.estadoPago === 'Fiado'
-      }"
-    >
-      <div class="tarjeta-header">
-        <h3>{{ servicio.cliente }}</h3>
-        <span class="badge" v-if="servicio.estadoPago === 'Pagado'">Pagado</span>
-        <span class="badge badge-pendiente" v-else-if="servicio.estadoPago === 'Pendiente'">Pendiente</span>
-        <span class="badge badge-fiado" v-else-if="servicio.estadoPago === 'Fiado'">Fiado</span>
-      </div>
-
-      <p><strong>Servicio:</strong> {{ servicio.tipoServicio }}</p>
-      <p><strong>Barbero:</strong> {{ servicio.barbero }}</p>
-      <p><strong>Fecha:</strong> {{ servicio.fecha }} {{ servicio.hora }}</p>
-      <p><strong>Precio:</strong> ${{ servicio.precio }}</p>
-
-      <p v-if="servicio.metodoPago === 'Efectivo'">Efectivo</p>
-      <p v-else-if="servicio.metodoPago === 'Trasferencia'">Transferencia</p>
-      <p v-else-if="servicio.metodoPago === 'Tarjeta'">Tarjeta</p>
-
-      <p v-if="servicio.estadoPago === 'Fiado'" class="alerta-debe">¡Debe!</p>
-
-      <div v-if="!servicio.finalizado" class="sin-finalizar">
-        <p class="pendiente-finalizar">Servicio en curso</p>
-        <button class="btn-finalizar" @click="abrirFinalizar(servicio)">
-          Finalizar Servicio
-        </button>
-      </div>
-
-      <div v-else>
-        <p v-if="servicio.calificacion <= 2" class="calificacion-baja">
-          Calificación Baja ({{ servicio.calificacion }}/5)
-        </p>
-        <p v-else>⭐ {{ servicio.calificacion }}/5</p>
-
-        <p v-if="servicio.observaciones" class="observaciones">
-          {{ servicio.observaciones }}
-        </p>
-      </div>
-
-      <div class="acciones">
-        <button @click="abrirModalEditar(servicio)">Editar</button>
-        <button @click="abrirConfirmacion(servicio.id)">Eliminar</button>
-      </div>
-    </div>
-  </div>
-
-  <div v-if="mostrarmodal" class="model">
-    <div class="modal_contenido">
-      <h2>{{ idEditando === null ? 'Registrar Servicio' : 'Editar Servicio' }}</h2>
-
-      <form @submit.prevent="guardarServicio">
-        <label>Nombre del cliente</label>
-        <input type="text" v-model="formulario.cliente" :disabled="guardando">
-
-        <label>Tipo de servicio</label>
-        <select v-model="formulario.tipoServicio" @change="actualizarPrecio" :disabled="guardando">
-          <option value="">Seleccione un servicio</option>
-          <option v-for="tipo in tiposServicio" :key="tipo" :value="tipo">
-            {{ tipo }}
-          </option>
-        </select>
-
-        <label>Barbero</label>
-        <select v-model="formulario.barbero" :disabled="guardando">
-          <option value="">Seleccione un barbero</option>
-          <option v-for="barbero in barberos" :key="barbero" :value="barbero">
-            {{ barbero }}
-          </option>
-        </select>
-
-        <div class="fila">
-          <div>
-            <label>Fecha</label>
-            <input type="date" v-model="formulario.fecha" :disabled="guardando">
-          </div>
-          <div>
-            <label>Hora</label>
-            <input type="time" v-model="formulario.hora" :disabled="guardando">
-          </div>
+        <div>
+          <h1 class="serif">GALÉ</h1>
+          <p>Barber Studio</p>
         </div>
 
-        <label>Precio</label>
-        <input type="number" v-model="formulario.precio" :disabled="guardando">
+      </div>
 
-        <label>Método de pago</label>
-        <select v-model="formulario.metodoPago" :disabled="guardando">
-          <option value="">Seleccione un método</option>
-          <option value="Efectivo">Efectivo</option>
-          <option value="Trasferencia">Transferencia</option>
-          <option value="Tarjeta">Tarjeta</option>
-        </select>
+      <div class="turno-activo">
+        <span class="dot"></span>
+        Turno activo
+        <span class="time">10:00–20:00</span>
+      </div>
 
-        <label>Estado del pago</label>
-        <select v-model="formulario.estadoPago" :disabled="guardando">
-          <option value="">Seleccione un estado</option>
-          <option value="Pagado">Pagado</option>
-          <option value="Pendiente">Pendiente</option>
-          <option value="Fiado">Fiado</option>
-        </select>
+      <nav class="nav-list">
+        <div class="nav-item active">▦ Panel de Servicios</div>
+      </nav>
 
-        <p v-if="mensajeEror" class="error">{{ mensajeEror }}</p>
-        <p v-if="guardando" class="guardando-msg">Guardando el servicio, un momento...</p>
+      <div class="sidebar-foot">
+
+        <div class="capacidad-label">
+          <span>Sillones ocupados</span>
+          <span>4/5</span>
+        </div>
+
+        <div class="capacidad-bar">
+          <div class="capacidad-fill"></div>
+        </div>
+
+      </div>
+
+    </aside>
+
+    <!-- MAIN -->
+
+    <main class="main">
+
+      <div class="topbar">
+
+        <div class="pill">
+          📅 Hoy,
+          {{ new Date().toLocaleDateString('es-CO', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          }) }}
+        </div>
+
+        <div class="pill mint">
+          ⏱ Pico de afluencia: 17:30–19:30
+        </div>
+
+        <div class="topbar-spacer"></div>
+
+        <div class="icon-btn">🔍</div>
+
+        <div class="icon-btn">🔔</div>
+
+        <div class="profile">
+
+          <div class="profile-avatar">MG</div>
+
+          <div>
+            <div class="profile-name">Marcello Galé</div>
+            <div class="profile-role">Head Barber / Admin</div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="header-row">
+
+        <div>
+
+          <p class="header-eyebrow">
+            CONSOLA DE ADMINISTRACIÓN
+          </p>
+
+          <h2 class="serif">
+            Gestiona los servicios de
+            <em>tu barbería</em>
+          </h2>
+
+          <p class="sub">
+            Reservas, cobros y calidad de atención, todo en un mismo panel, fácil y rápido.
+          </p>
+
+        </div>
+
+        <button
+          class="btn-nuevo"
+          @click="abrirModalNuevo"
+        >
+          + Nuevo Servicio
+        </button>
+
+      </div>
+
+      <div class="stats-row">
+
+        <div class="stat-card">
+
+          <div class="stat-top">
+
+            <span class="stat-label">
+              Servicios de hoy
+            </span>
+
+            <div class="stat-icon">
+              📈
+            </div>
+
+          </div>
+
+          <div class="stat-value">
+            {{ serviciosHechosHoy }}
+            <small>completados</small>
+          </div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-top">
+
+            <span class="stat-label">
+              En reserva hoy
+            </span>
+
+            <div class="stat-icon">
+              ⏱
+            </div>
+
+          </div>
+
+          <div class="stat-value">
+            {{ serviciosReservaHoy }}
+            <small>en espera</small>
+          </div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-top">
+
+            <span class="stat-label">
+              Total vendido hoy
+            </span>
+
+            <div class="stat-icon">
+              💰
+            </div>
+
+          </div>
+
+          <div class="stat-money">
+            ${{ formatearPrecio(resumenDia) }}
+
+            <small style="font-size:0.8rem;color:var(--text-dim)">
+              COP
+            </small>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="section-head">
+
+        <h3 class="serif">
+          Servicios Registrados
+
+          <span class="count">
+            {{ obtenerListaVisible().length }}
+            de
+            {{ servicios.length }}
+          </span>
+
+        </h3>
+
+        <div class="filtros">
+
+          <button
+            v-for="b in ['Todos', ...barberos]"
+            :key="b"
+            class="filtro-btn"
+            :class="{ active: filtroBarbero === b }"
+            @click="filtroBarbero = b"
+          >
+            {{ b }}
+          </button>
+
+        </div>
+
+      </div>
+
+      <p
+        class="sin-registros"
+        v-if="obtenerListaVisible().length === 0"
+      >
+        Aún no hay servicios registrados para este filtro.
+        ¡Agrega el primero!
+      </p>
+
+      <div class="servicios-grid">
+
+        <div
+          v-for="servicio in obtenerListaVisible()"
+          :key="servicio.id"
+          class="tarjeta"
+          :class="{
+            pendiente: servicio.estadoPago === 'Pendiente',
+            abonado: servicio.estadoPago === 'abonado',
+            pagado: servicio.estadoPago === 'Pagado'
+          }"
+        >
+
+          <div class="tarjeta-header">
+
+            <h4 class="serif">
+              {{ servicio.cliente }}
+            </h4>
+
+            <span
+              class="badge badge-pagado"
+              v-if="servicio.estadoPago === 'Pagado'"
+            >
+              Pagado
+            </span>
+
+            <span
+              class="badge badge-pendiente"
+              v-else-if="servicio.estadoPago === 'Pendiente'"
+            >
+              Pendiente
+            </span>
+
+            <span
+              class="badge badge-abonado"
+              v-else-if="servicio.estadoPago === 'abonado'"
+            >
+              Abonado
+            </span>
+
+          </div>
+
+          <div class="tarjeta-row">
+            📞 {{ servicio.telefono }}
+          </div>
+
+          <div class="tarjeta-row">
+            ✂
+            <b>{{ servicio.tipoServicio }}</b>
+            · {{ servicio.barbero }}
+          </div>
+
+          <div class="tarjeta-row">
+            📅 {{ servicio.fecha }} · {{ servicio.hora }}
+          </div>
+
+          <div
+            class="tarjeta-row"
+            v-if="servicio.metodoPago"
+          >
+            Pago con
+            {{ servicio.metodoPago === 'Trasferencia'
+              ? 'Transferencia'
+              : servicio.metodoPago }}
+          </div>
+
+          <div class="tarjeta-precio serif">
+            ${{ formatearPrecio(servicio.precio) }}
+
+            <small
+              style="font-size:0.7rem;color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif"
+            >
+              COP
+            </small>
+          </div>
+
+          <!-- si esta abonado, muestro cuanto abono y cuanto falta -->
+
+          <div
+            v-if="servicio.estadoPago === 'abonado'"
+            class="info-abono"
+          >
+            Abonó ${{ formatearPrecio(servicio.montoAbonado) }} COP
+
+            <div class="falta">
+              Falta ${{ formatearPrecio(calcularSaldoPendiente(servicio)) }} COP
+            </div>
+
+          </div>
+
+          <div
+            v-if="!servicio.finalizado"
+            class="en-curso"
+          >
+
+            <span>
+              Servicio en curso
+            </span>
+
+            <button
+              class="btn-finalizar"
+              @click="abrirFinalizar(servicio)"
+            >
+              Finalizar
+            </button>
+
+          </div>
+
+          <div
+            v-else
+            class="resultado-final"
+          >
+
+            <span
+              v-if="servicio.calificacion <= 2"
+              class="calificacion-baja"
+            >
+              ⚠ Calificación baja
+              ({{ servicio.calificacion }}/5)
+            </span>
+
+            <span
+              v-else
+              class="calificacion-alta"
+            >
+              ★ {{ servicio.calificacion }}/5
+            </span>
+
+          </div>
+
+          <p
+            v-if="servicio.finalizado && servicio.observaciones"
+            class="observaciones"
+          >
+            {{ servicio.observaciones }}
+          </p>
+
+          <div class="acciones">
+
+            <button
+              @click="abrirModalEditar(servicio)"
+            >
+              ✎ Editar
+            </button>
+
+            <button
+              class="eliminar"
+              @click="abrirConfirmacion(servicio.id)"
+            >
+              🗑 Eliminar
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="promo-banner">
+
+        <div>
+
+          <p class="eyebrow">
+            EXCELENCIA BARBER STUDIO
+          </p>
+
+          <h3 class="serif">
+            Detalle, estilo y precisión en cada cita.
+          </h3>
+
+          <p>
+            Cada corte registrado queda archivado con métricas de productividad por barbero,
+            asegurando la fidelidad de nuestros clientes VIP.
+          </p>
+
+        </div>
+
+        <div class="promo-stats">
+
+          <div>
+            <b>4.9/5.0</b>
+            <span>Satisfacción</span>
+          </div>
+
+          <div>
+            <b>32 min</b>
+            <span>Tiempo promedio</span>
+          </div>
+
+          <div>
+            <b>✨</b>
+            <span>Servicio VIP</span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- MODAL: REGISTRAR / EDITAR -->
+
+    <div
+      v-if="mostrarmodal"
+      class="overlay"
+      @click.self="cerrarModal"
+    >
+
+      <div class="modal">
+
+        <button
+          class="modal-close"
+          @click="cerrarModal"
+        >
+          ✕
+        </button>
+
+        <p class="modal-eyebrow">
+          Atención de barbería
+        </p>
+
+        <h2 class="serif">
+          {{ idEditando === null
+            ? 'Registrar Servicio'
+            : 'Editar Servicio' }}
+        </h2>
+
+        <p class="desc">
+          Ingresa los detalles de la atención para control de turnos y facturación.
+        </p>
+
+        <form @submit.prevent="guardarServicio">
+
+          <label>Nombre del cliente</label>
+
+          <input
+            type="text"
+            v-model="formulario.cliente"
+            :disabled="guardando"
+            placeholder="Ej. Alejandro Restrepo"
+          >
+
+          <label>Teléfono del cliente</label>
+
+          <input
+            type="tel"
+            v-model="formulario.telefono"
+            :disabled="guardando"
+            placeholder="Ej: 3001234567"
+          >
+
+          <label>Tipo de servicio</label>
+
+          <select
+            v-model="formulario.tipoServicio"
+            @change="actualizarPrecio"
+            :disabled="guardando"
+          >
+
+            <option value="">
+              Seleccione un servicio
+            </option>
+
+            <option
+              v-for="tipo in tiposServicio"
+              :key="tipo"
+              :value="tipo"
+            >
+              {{ tipo }}
+            </option>
+
+          </select>
+
+          <label>Barbero asignado</label>
+
+          <select
+            v-model="formulario.barbero"
+            :disabled="guardando"
+          >
+
+            <option value="">
+              Seleccione un barbero
+            </option>
+
+            <option
+              v-for="barbero in barberos"
+              :key="barbero"
+              :value="barbero"
+            >
+              {{ barbero }}
+            </option>
+
+          </select>
+
+          <div class="fila-doble">
+
+            <div>
+
+              <label>Fecha</label>
+
+              <input
+                type="date"
+                v-model="formulario.fecha"
+                :min="obtenerFechaMinima()"
+                :disabled="guardando"
+              >
+
+            </div>
+
+            <div>
+
+              <label>Hora</label>
+
+              <input
+                type="time"
+                v-model="formulario.hora"
+                :min="obtenerHoraMinima()"
+                :max="obtenerHoraMaxima()"
+                :disabled="guardando"
+              >
+
+            </div>
+
+          </div>
+
+          <label>Precio</label>
+
+          <input
+            type="number"
+            v-model="formulario.precio"
+            :disabled="guardando"
+          >
+
+          <p
+            v-if="formulario.precio > 0"
+            class="precio-preview"
+          >
+            Se guardará como:
+            ${{ formatearPrecio(formulario.precio) }} COP
+          </p>
+
+          <label>Método de pago</label>
+
+          <select
+            v-model="formulario.metodoPago"
+            :disabled="guardando"
+          >
+
+            <option value="">
+              Seleccione un método
+            </option>
+
+            <option value="Efectivo">
+              Efectivo
+            </option>
+
+            <option value="Trasferencia">
+              Transferencia
+            </option>
+
+            <option value="Tarjeta">
+              Tarjeta
+            </option>
+
+          </select>
+
+          <label>Estado del pago</label>
+
+          <div class="estado-pago-grupo">
+
+            <button
+              type="button"
+              :disabled="guardando"
+              class="estado-btn"
+              :class="{
+                selected: formulario.estadoPago === 'Pagado',
+                'pagado-sel': formulario.estadoPago === 'Pagado'
+              }"
+              @click="formulario.estadoPago = 'Pagado'"
+            >
+              Pagado
+            </button>
+
+            <button
+              type="button"
+              :disabled="guardando"
+              class="estado-btn"
+              :class="{
+                selected: formulario.estadoPago === 'Pendiente',
+                'pendiente-sel': formulario.estadoPago === 'Pendiente'
+              }"
+              @click="formulario.estadoPago = 'Pendiente'"
+            >
+              Pendiente
+            </button>
+
+            <button
+              type="button"
+              :disabled="guardando"
+              class="estado-btn"
+              :class="{
+                selected: formulario.estadoPago === 'abonado',
+                'abonado-sel': formulario.estadoPago === 'abonado'
+              }"
+              @click="formulario.estadoPago = 'abonado'"
+            >
+              Abonado
+            </button>
+
+          </div>
+
+          <!-- este bloque solo aparece si escogieron "abonado" -->
+
+          <div v-if="formulario.estadoPago === 'abonado'">
+
+            <label>
+              ¿Cuánto abonó?
+            </label>
+
+            <input
+              type="number"
+              v-model="formulario.montoAbonado"
+              :disabled="guardando"
+            >
+
+          </div>
+
+          <p
+            v-if="mensajeEror"
+            class="msg-error"
+          >
+            ⚠ {{ mensajeEror }}
+          </p>
+
+          <p
+            v-if="guardando"
+            class="msg-guardando"
+          >
+            <span class="spinner"></span>
+            Guardando el servicio, un momento...
+          </p>
+
+          <div class="botones-form">
+
+            <button
+              type="submit"
+              class="btn-guardar"
+              :disabled="guardando"
+            >
+              {{ guardando
+                ? 'Guardando...'
+                : 'Guardar Servicio' }}
+            </button>
+
+            <button
+              type="button"
+              class="btn-cancelar"
+              @click="cerrarModal"
+              :disabled="guardando"
+            >
+              Cancelar
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+    <!-- MODAL: FINALIZAR -->
+
+    <div
+      v-if="mostrarModalFinalizar && obtenerServicioFinalizando()"
+      class="overlay"
+      @click.self="cerrarFinalizar"
+    >
+
+      <div class="modal">
+
+        <button
+          class="modal-close"
+          @click="cerrarFinalizar"
+        >
+          ✕
+        </button>
+
+        <p class="modal-eyebrow">
+          Cierre de ticket
+        </p>
+
+        <h2 class="serif">
+          Finalizar Servicio
+        </h2>
+
+        <p class="desc">
+          Registra cómo quedó el cliente y completa la auditoría de calidad de la atención.
+        </p>
+
+        <div class="ticket-box">
+
+          <div class="ticket-left">
+
+            <div class="cliente-avatar">
+              {{ inicialesCliente(obtenerServicioFinalizando().cliente) }}
+            </div>
+
+            <div>
+
+              <b>
+                {{ obtenerServicioFinalizando().cliente }}
+              </b>
+
+              <span>
+                {{ obtenerServicioFinalizando().tipoServicio }}
+                · Atendido por
+                {{ obtenerServicioFinalizando().barbero }}
+              </span>
+
+            </div>
+
+          </div>
+
+          <div class="monto">
+
+            <span>
+              Monto total
+            </span>
+
+            <b>
+              ${{ formatearPrecio(obtenerServicioFinalizando().precio) }}
+            </b>
+
+          </div>
+
+        </div>
+
+        <label
+          style="margin-top:0;text-align:center;display:block"
+        >
+          Calificación del cliente
+        </label>
+
+        <div class="estrellas">
+
+          <button
+            type="button"
+            v-for="estrella in 5"
+            :key="estrella"
+            @click="ponerCalificacion(estrella)"
+          >
+
+            <span
+              :class="{
+                filled: estrella <= calificacionFinal
+              }"
+            >
+              ★
+            </span>
+
+          </button>
+
+        </div>
+
+        <p class="calif-caption">
+          Pulsa sobre una estrella para calificar
+        </p>
+
+        <label>
+          Observaciones (opcional)
+        </label>
+
+        <textarea
+          v-model="observacionesFinal"
+          :disabled="guardandoFinalizacion"
+          placeholder="Detalles del corte, estilo preferido o notas para su próxima visita..."
+        ></textarea>
+
+        <p
+          v-if="guardandoFinalizacion"
+          class="msg-guardando"
+        >
+          <span class="spinner"></span>
+          Guardando...
+        </p>
 
         <div class="botones-form">
-          <button type="submit" class="btn-guardar" :disabled="guardando">
-            {{ guardando ? 'Guardando...' : 'Guardar Servicio' }}
+
+          <button
+            type="button"
+            class="btn-guardar"
+            :disabled="guardandoFinalizacion"
+            @click="guardarFinalizacion"
+          >
+            {{ guardandoFinalizacion
+              ? 'Guardando...'
+              : 'Guardar y Finalizar' }}
           </button>
-          <button type="button" class="btn-cancelar" @click="cerrarModal" :disabled="guardando">
+
+          <button
+            type="button"
+            class="btn-cancelar"
+            :disabled="guardandoFinalizacion"
+            @click="cerrarFinalizar"
+          >
             Cancelar
           </button>
+
         </div>
-      </form>
-    </div>
-  </div>
 
-  <div v-if="mostrarModalFinalizar" class="model">
-    <div class="modal_contenido">
-      <h2>Finalizar Servicio</h2>
-      <p>Registra cómo quedó el cliente al terminar el servicio.</p>
-
-      <label>Calificación</label>
-      <div class="estrellas">
-        <span v-for="estrella in 5" :key="estrella" @click="ponerCalificacion(estrella)">
-          <span v-if="estrella <= calificacionFinal">★</span>
-          <span v-else>☆</span>
-        </span>
       </div>
 
-      <label>Observaciones (opcional)</label>
-      <textarea v-model="observacionesFinal" :disabled="guardandoFinalizacion"></textarea>
-
-      <p v-if="guardandoFinalizacion" class="guardando-msg">Guardando</p>
-
-      <div class="botones-form">
-        <button type="button" class="btn-guardar" :disabled="guardandoFinalizacion" @click="guardarFinalizacion">
-          {{ guardandoFinalizacion ? 'Guardando...' : 'Guardar' }}
-        </button>
-        <button type="button" class="btn-cancelar" :disabled="guardandoFinalizacion" @click="cerrarFinalizar">
-          Cancelar
-        </button>
-      </div>
     </div>
+
+    <!-- MODAL: CONFIRMAR ELIMINACIÓN -->
+
+    <div
+      v-if="mostrarConfirmacion"
+      class="overlay"
+      @click.self="mostrarConfirmacion = false"
+    >
+
+      <div class="modal confirm-modal">
+
+        <div class="confirm-icon"></div>
+
+        <h2 class="serif">
+          ¿Eliminar servicio?
+        </h2>
+
+        <p class="desc">
+          ¿Estás seguro de eliminar este servicio?
+          Esta acción no se puede deshacer.
+        </p>
+
+        <div class="botones-form">
+
+          <button
+            class="btn-guardar btn-danger"
+            @click="confirmarEliminacion"
+          >
+            Sí, eliminar
+          </button>
+
+          <button
+            class="btn-cancelar"
+            @click="mostrarConfirmacion = false"
+          >
+            Cancelar
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
   </div>
 
-  <div v-if="mostrarConfirmacion" class="modal-confirmacion">
-    <div class="Confirmacion-contenido">
-      <h2>¿Eliminar Servicio?</h2>
-      <p>¿Estás seguro de eliminar este servicio? Esta acción no se puede deshacer.</p>
-      <div class="botones-form">
-        <button class="btn-guardar" @click="confirmarEliminacion">Sí, eliminar</button>
-        <button class="btn-cancelar" @click="mostrarConfirmacion = false">Cancelar</button>
-      </div>
-    </div>
-  </div>
 </template>
-
 <style>
-* { box-sizing: border-box; }
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+body{
+  padding: 0;
+}
+.gale-app {
+  --gold: #D4AF37;
+  --gold-soft: #E9CE86;
+  --bronze: #C59A6F;
+  --mint: #34D399;
+  --coral: #E2725B;
+  --panel-1: #17171B;
+  --panel-2: #1D1D22;
+  --line: #2A2A30;
+  --line-soft: #232328;
+  --text: #ECE8DF;
+  --text-dim: #9C9AA3;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: radial-gradient(ellipse at top left, #17151B 0%, #0B0B0D 55%, #08080A 100%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  position: relative;
+  
+}
+.gale-app * { box-sizing: border-box; }
+.gale-app .serif { font-family: 'Bodoni Moda', serif; }
 
-body {
-  font-family: 'Segoe UI', sans-serif;
-  background: #f0f2f5;
-  margin: 0;
-  padding: 0;
+.gale-app::before {
+  content: "";
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(212,175,55,0.07) 1px, transparent 1px);
+  background-size: 26px 26px;
+  pointer-events: none;
+  z-index: 0;
 }
-.nav {
-  background-color: #111;
-  padding: 20px 10px 15px 10px;
-  text-align: center;
+
+.sidebar {
+  width: 236px;
+  flex-shrink: 0;
+  background: #111114;
+  border-right: 1px solid var(--line);
+  padding: 28px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  position: relative;
+  z-index: 1;
 }
-.titulo_nav {
-  margin: 0;
-  padding: 0;
-  color: white;
-  font-family: 'Bodoni Moda', serif;
-  font-weight: 700;
-  font-size: 2.2rem;
-  text-transform: uppercase;
-  letter-spacing: 3px;
+.brand { display: flex; align-items: center; gap: 12px; padding: 0 6px; }
+.brand-mark {
+  width: 40px; height: 40px; border-radius: 9px;
+  background: linear-gradient(160deg, #26241C, #171612);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gold); font-size: 1.1rem;
 }
-.subtitulo_nav {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 0.9rem;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  margin: 0;
-  padding-top: 5px;
-  color: #ccc;
+.brand h1 { font-size: 1.15rem; letter-spacing: 0.06em; margin: 0; color: var(--gold-soft); font-weight: 600; }
+.brand p { font-size: 0.62rem; letter-spacing: 0.22em; margin: 1px 0 0; color: var(--text-dim); text-transform: uppercase; }
+
+.turno-activo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.72rem; color: var(--mint);
+  background: rgba(52,211,153,0.08);
+  border: 1px solid rgba(52,211,153,0.25);
+  border-radius: 8px; padding: 8px 10px;
 }
-.inf {
-  text-align: center;
-  padding: 20px 10px 5px 10px;
-  color: #555;
-  font-size: 0.95rem;
+.turno-activo .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 8px var(--mint); }
+.turno-activo .time { margin-left: auto; color: var(--text-dim); }
+
+.nav-list { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.nav-item {
+  padding: 10px 12px; border-radius: 9px;
+  font-size: 0.86rem; color: var(--text-dim);
+  border: 1px solid transparent;
 }
+.nav-item.active {
+  background: rgba(212,175,55,0.1);
+  border-color: rgba(212,175,55,0.28);
+  color: var(--gold-soft);
+}
+
+.sidebar-foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 16px; }
+.capacidad-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 6px; }
+.capacidad-bar { height: 6px; border-radius: 4px; background: #232327; overflow: hidden; }
+.capacidad-fill { height: 100%; background: linear-gradient(90deg, var(--bronze), var(--gold)); width: 80%; }
+
+.main { flex: 1; padding: 26px 34px 60px; position: relative; z-index: 1; min-width: 0; }
+
+.topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; flex-wrap: wrap; }
+.pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel-1); border: 1px solid var(--line);
+  padding: 8px 14px; border-radius: 999px; font-size: 0.78rem; color: var(--text-dim);
+}
+.pill.mint { color: var(--mint); }
+.topbar-spacer { flex: 1; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--panel-1);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim); font-size: 0.9rem;
+}
+.profile { display: flex; align-items: center; gap: 10px; padding-left: 8px; }
+.profile-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(145deg, var(--gold-soft), var(--bronze));
+  display: flex; align-items: center; justify-content: center;
+  color: #17140C; font-weight: 700; font-size: 0.8rem;
+}
+.profile-name { font-size: 0.82rem; font-weight: 600; color: var(--text); line-height: 1.1; }
+.profile-role { font-size: 0.68rem; color: var(--text-dim); }
+
+.header-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+.header-eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; color: var(--gold); margin: 0 0 8px; }
+.header-row h2 { font-size: 2rem; margin: 0; font-weight: 500; line-height: 1.1; }
+.header-row h2 em { font-style: italic; color: var(--gold-soft); }
+.header-row p.sub { color: var(--text-dim); margin: 10px 0 0; max-width: 46ch; font-size: 0.92rem; }
 .btn-nuevo {
-  display: block;
-  margin: 10px auto 20px auto;
-  padding: 12px 30px;
-  background: #2c3e50;
-  color: white;
-  border: none;
-  border-radius: 30px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color: #1A1509; border: none; font-weight: 700;
+  padding: 13px 20px; border-radius: 11px; font-size: 0.88rem;
+  cursor: pointer; box-shadow: 0 8px 22px -8px rgba(212,175,55,0.55);
+  white-space: nowrap;
 }
-.resumen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  margin: 0 auto 25px auto;
-  max-width: 300px;
-  background: white;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+.btn-nuevo:hover { filter: brightness(1.05); }
+
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
+.stat-card { background: linear-gradient(165deg, var(--panel-2), var(--panel-1)); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.stat-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.stat-icon {
+  width: 34px; height: 34px; border-radius: 9px; background: rgba(212,175,55,0.1);
+  border: 1px solid rgba(212,175,55,0.22); display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
 }
-.resumen button {
-  padding: 8px 20px;
-  border: none;
-  border-radius: 20px;
-  background: #2c3e50;
-  color: white;
-  cursor: pointer;
-  font-weight: bold;
-}
-.resumen p {
-  margin-top: 10px;
-  margin-bottom: 0;
-  font-weight: bold;
-  color: #2c3e50;
-}
-.titulo-seccion {
-  text-align: center;
-  color: #2c3e50;
-  margin-bottom: 15px;
-}
-.sin-registros {
-  text-align: center;
-  color: #888;
-  padding: 20px;
-}
-.servicios {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  justify-content: center;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 20px 30px 20px;
-}
+.stat-label { font-size: 0.76rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat-value { font-size: 2.1rem; font-weight: 600; font-family: 'Bodoni Moda', serif; }
+.stat-value small { font-size: 1rem; color: var(--text-dim); font-family: 'Plus Jakarta Sans', sans-serif; margin-left: 6px; }
+.stat-money { font-size: 1.7rem; font-weight: 600; font-family: 'Bodoni Moda', serif; color: var(--mint); }
+.stat-btn { margin-top: 10px; background: none; border: 1px solid var(--line); color: var(--text-dim); font-size: 0.76rem; padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+.stat-btn:hover { border-color: var(--gold); color: var(--gold-soft); }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.section-head h3 { font-family: 'Bodoni Moda', serif; font-size: 1.3rem; font-weight: 500; margin: 0; }
+.section-head .count { color: var(--text-dim); font-weight: 400; font-size: 0.9rem; font-family: 'Plus Jakarta Sans', sans-serif; margin-left: 8px; }
+.filtros { display: flex; gap: 6px; flex-wrap: wrap; }
+.filtro-btn { border: 1px solid var(--line); background: var(--panel-1); color: var(--text-dim); font-size: 0.76rem; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.filtro-btn.active { border-color: var(--gold); color: var(--gold-soft); background: rgba(212,175,55,0.08); }
+
+.sin-registros { border: 1px dashed var(--line); border-radius: 14px; padding: 40px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
+
+.servicios-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; margin-bottom: 30px; }
 .tarjeta {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-left: 5px solid #2ecc71;
-  width: 280px;
-  display: flex;
-  flex-direction: column;
+  background: var(--panel-1); border: 1px solid var(--line); border-radius: 14px;
+  padding: 18px; display: flex; flex-direction: column; gap: 8px; border-top: 2px solid var(--line);
 }
-.tarjeta-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
+.tarjeta.pagado { border-top-color: var(--mint); }
+.tarjeta.abonado { border-top-color: var(--gold); }
+.tarjeta.pendiente { border-top-color: var(--coral); }
+.tarjeta-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.tarjeta-header h4 { font-family: 'Bodoni Moda', serif; font-size: 1.15rem; font-weight: 500; margin: 0; }
+.badge { font-size: 0.68rem; padding: 4px 9px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.badge-pagado { background: rgba(52,211,153,0.12); color: var(--mint); border: 1px solid rgba(52,211,153,0.3); }
+.badge-pendiente { background: rgba(226,114,91,0.12); color: #EF9784; border: 1px solid rgba(226,114,91,0.32); }
+.badge-abonado { background: rgba(212,175,55,0.12); color: var(--gold-soft); border: 1px solid rgba(212,175,55,0.32); }
+.tarjeta-row { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--text-dim); }
+.tarjeta-row b { color: var(--text); font-weight: 500; }
+.tarjeta-precio { font-family: 'Bodoni Moda', serif; font-size: 1.25rem; margin-top: 2px; }
+.info-abono { background: rgba(212,175,55,0.07); border: 1px solid rgba(212,175,55,0.2); border-radius: 9px; padding: 8px 11px; font-size: 0.78rem; margin-top: 2px; }
+.info-abono .falta { color: #EF9784; font-weight: 600; margin-top: 2px; }
+.en-curso {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--line-soft);
+  border-radius: 10px; padding: 9px 12px; margin-top: 4px;
 }
-.tarjeta-header h3 {
-  margin: 0;
-  color: #2c3e50;
-}
-.badge {
-  padding: 3px 10px;
-  border-radius: 15px;
-  font-size: 0.7rem;
-  font-weight: bold;
-  background: #2ecc71;
-  color: white;
-}
-.badge-pendiente { background: rgb(255, 149, 0); }
-.badge-fiado { background: #e74c3c; }
-.tarjeta p { margin: 6px 0; font-size: 0.9rem; color: #444; }
-.pendiente { border-left: 5px solid rgb(210, 177, 115); background: #fff8ec; }
-.fiado { border-left: 5px solid #e74c3c; background: #fdeceb; }
-.calificacion-baja { color: #e74c3c; font-weight: bold; }
-.alerta-debe { color: #e74c3c; font-weight: bold; }
-.observaciones { font-style: italic; color: #666; }
-.sin-finalizar {
-  background: #fff8e1;
-  border-radius: 8px;
-  padding: 8px;
-  margin-top: 8px;
-  text-align: center;
-}
-.pendiente-finalizar {
-  margin: 0 0 8px 0;
-  font-size: 0.85rem;
-  color: #ad892c;
-}
+.en-curso span { font-size: 0.78rem; color: var(--text-dim); }
 .btn-finalizar {
-  width: 100%;
-  padding: 8px;
-  border: none;
-  border-radius: 6px;
-  background: #a58653;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color: #1A1509; border: none; font-weight: 700; font-size: 0.76rem;
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
 }
-.acciones {
-  margin-top: auto;
-  padding-top: 12px;
-  display: flex;
-  gap: 8px;
-}
+.resultado-final { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.calificacion-alta { color: var(--gold-soft); font-size: 0.85rem; font-weight: 600; }
+.calificacion-baja { color: #EF9784; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.observaciones { font-size: 0.78rem; color: var(--text-dim); font-style: italic; margin-top: 2px; border-left: 2px solid var(--line); padding-left: 8px; }
+.acciones { display: flex; gap: 8px; margin-top: 8px; }
 .acciones button {
-  flex: 1;
-  padding: 5px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: white;
-  font-weight: bold;
+  flex: 1; background: transparent; border: 1px solid var(--line); color: var(--text-dim);
+  font-size: 0.78rem; padding: 8px; border-radius: 8px; cursor: pointer;
 }
-.acciones button:first-child { background: #4f7c53; }
-.acciones button:last-child { background: #8f4a42; }
-.model, .modal-confirmacion {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 20px;
+.acciones button:hover { border-color: var(--gold); color: var(--gold-soft); }
+.acciones button.eliminar:hover { border-color: #E2725B; color: #EF9784; }
+
+.promo-banner {
+  border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+  background: linear-gradient(120deg, #1B1A16 0%, #141316 60%);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 30px 34px; gap: 20px; flex-wrap: wrap;
 }
-.modal_contenido, .Confirmacion-contenido {
-  background: white;
-  border-radius: 12px;
-  padding: 25px;
-  width: 100%;
-  max-width: 420px;
-  max-height: 85vh;
-  overflow-y: auto;
+.promo-banner .eyebrow { color: var(--gold); font-size: 0.72rem; letter-spacing: 0.14em; margin: 0 0 8px; }
+.promo-banner h3 { font-family: 'Bodoni Moda', serif; font-size: 1.7rem; font-weight: 500; margin: 0 0 8px; max-width: 20ch; }
+.promo-banner p { color: var(--text-dim); font-size: 0.86rem; max-width: 40ch; margin: 0; }
+.promo-stats { display: flex; gap: 26px; }
+.promo-stats div { text-align: center; }
+.promo-stats b { font-family: 'Bodoni Moda', serif; font-size: 1.35rem; display: block; color: var(--gold-soft); }
+.promo-stats span { font-size: 0.7rem; color: var(--text-dim); }
+
+/* modals */
+.overlay {
+  position: fixed; inset: 0; background: rgba(6,6,8,0.72); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 50;
 }
-.modal_contenido label {
-  display: block;
-  margin-top: 10px;
-  font-weight: bold;
-  color: #2c3e50;
+.modal {
+  background: #141317; border: 1px solid var(--line); border-radius: 18px;
+  width: 100%; max-width: 480px; padding: 28px; max-height: 88vh; overflow-y: auto; position: relative;
 }
-.modal_contenido input,
-.modal_contenido select,
-.modal_contenido textarea {
-  width: 100%;
-  padding: 8px;
-  margin-top: 4px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+.modal-close {
+  position: absolute; top: 20px; right: 20px; width: 30px; height: 30px;
+  border-radius: 8px; border: 1px solid var(--line); background: var(--panel-1);
+  color: var(--text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.fila {
-  display: flex;
-  gap: 10px;
+.modal-eyebrow { font-size: 0.68rem; letter-spacing: 0.14em; color: var(--gold); margin: 0 0 6px; text-transform: uppercase; }
+.modal h2 { font-family: 'Bodoni Moda', serif; font-weight: 500; font-size: 1.5rem; margin: 0 0 6px; }
+.modal > .desc { color: var(--text-dim); font-size: 0.85rem; margin: 0 0 20px; }
+
+.modal label { display: block; font-size: 0.78rem; color: var(--text-dim); margin: 14px 0 6px; }
+.modal input, .modal select, .modal textarea {
+  width: 100%; background: #0F0F12; border: 1px solid var(--line); color: var(--text);
+  padding: 11px 13px; border-radius: 9px; font-size: 0.88rem; font-family: inherit;
 }
-.fila > div { flex: 1; }
-.estrellas {
-  display: flex;
-  gap: 5px;
-  font-size: 1.5rem;
-  color: #f69d0f;
-  cursor: pointer;
-  margin-top: 5px;
-}
-.error {
-  color: #c51e0c;
-  font-weight: bold;
-}
-.guardando-msg {
-  color: #3cb929;
-  font-weight: bold;
-  text-align: center;
-  margin-top: 10px;
-}
-.botones-form {
-  display: flex;
-  gap: 10px;
-  margin-top: 15px;
-}
-.btn-guardar, .btn-cancelar {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  color: white;
-}
-.btn-guardar { background: #2ecc71; }
-.btn-guardar:disabled { background: #95d5b2; cursor: not-allowed; }
-.btn-cancelar { background: #999; }
-.btn-cancelar:disabled { cursor: not-allowed; }
-@media (max-width: 600px) {
-  .tarjeta { width: 100%; }
-  .fila { flex-direction: column; }
+.modal input:focus, .modal select:focus, .modal textarea:focus { outline: none; border-color: var(--gold); }
+.modal input:disabled, .modal select:disabled, .modal textarea:disabled { opacity: 0.55; }
+.modal textarea { min-height: 80px; resize: vertical; }
+.fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.precio-preview { font-size: 0.76rem; color: var(--text-dim); margin: 6px 2px 0; }
+
+.estado-pago-grupo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+.estado-btn { border: 1px solid var(--line); background: var(--panel-1); color: var(--text-dim); padding: 10px 6px; border-radius: 9px; font-size: 0.78rem; cursor: pointer; text-align: center; }
+.estado-btn.pagado-sel { border-color: var(--mint); color: var(--mint); background: rgba(52,211,153,0.08); }
+.estado-btn.pendiente-sel { border-color: #E2725B; color: #EF9784; background: rgba(226,114,91,0.08); }
+.estado-btn.abonado-sel { border-color: var(--gold); color: var(--gold-soft); background: rgba(212,175,55,0.08); }
+
+.msg-error { display: flex; align-items: center; gap: 7px; background: rgba(226,114,91,0.1); border: 1px solid rgba(226,114,91,0.3); color: #EF9784; padding: 10px 12px; border-radius: 9px; font-size: 0.8rem; margin-top: 16px; }
+.msg-guardando { color: var(--gold-soft); font-size: 0.8rem; margin-top: 12px; display: flex; align-items: center; gap: 8px; }
+.spinner { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(212,175,55,0.25); border-top-color: var(--gold); animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.botones-form { display: flex; gap: 10px; margin-top: 22px; }
+.btn-guardar { flex: 1; background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #1A1509; border: none; font-weight: 700; padding: 12px; border-radius: 10px; font-size: 0.86rem; cursor: pointer; }
+.btn-guardar.btn-danger { background: linear-gradient(180deg, #EF9784, #E2725B); }
+.btn-guardar:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-cancelar { flex: 1; background: transparent; border: 1px solid var(--line); color: var(--text-dim); font-weight: 600; padding: 12px; border-radius: 10px; font-size: 0.86rem; cursor: pointer; }
+.btn-cancelar:disabled { opacity: 0.5; }
+
+.ticket-box { background: #0F0F12; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.ticket-left { display: flex; align-items: center; }
+.ticket-box .cliente-avatar { width: 34px; height: 34px; border-radius: 9px; background: rgba(212,175,55,0.12); color: var(--gold-soft); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; margin-right: 10px; }
+.ticket-left div b { font-size: 0.92rem; display: block; }
+.ticket-left div span { font-size: 0.74rem; color: var(--text-dim); }
+.ticket-box .monto { text-align: right; }
+.ticket-box .monto span { display: block; font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.ticket-box .monto b { font-family: 'Bodoni Moda', serif; font-size: 1.2rem; color: var(--gold-soft); }
+
+.estrellas { display: flex; gap: 8px; justify-content: center; padding: 14px 0 6px; }
+.estrellas button { background: none; border: none; cursor: pointer; padding: 2px; font-size: 1.8rem; line-height: 1; color: #3B3A40; }
+.estrellas button span.filled { color: var(--gold); }
+.estrellas button:hover { transform: scale(1.08); }
+.calif-caption { text-align: center; font-size: 0.76rem; color: var(--text-dim); margin-bottom: 4px; }
+
+.confirm-modal { max-width: 380px; }
+.confirm-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(226,114,91,0.12); border: 1px solid rgba(226,114,91,0.3); display: flex; align-items: center; justify-content: center; color: #EF9784; margin-bottom: 14px; font-size: 1.2rem; }
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main { padding: 20px 16px 50px; }
+  .stats-row { grid-template-columns: 1fr; }
+  .fila-doble, .estado-pago-grupo { grid-template-columns: 1fr; }
+  .promo-banner { flex-direction: column; align-items: flex-start; }
 }
 </style>
