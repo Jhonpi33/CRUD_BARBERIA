@@ -1,43 +1,46 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 const servicios = useLocalStorage('servicios-barberia', [])
+const reservas = useLocalStorage('reservas-barberia', [])
+
 const barberos = ['Ramiro', 'Julian', 'Mario']
+
 const tiposServicio = [
-  'Corte Clasico',
-  'Corte Moderno',
-  'Corte Degradado',
-  'Corte Infantil',
-  'Barba',
-  'Diseño De Barba',
-  'Corte + barba',
-  'Cejas',
-  'Limpieza Facial'
+  'Low Taper Fade',
+  'Butterfly Cut (Corte Mariposa)',
+  'Neo-Mullet / Short Mullet',
+  'Clavicut',
+  'Crop Texturizado',
+  'Shaggy / Wolf Cut',
+  'Soft Slick Back / Bro Flow',
+  'Bob con Flequillo Cortina',
+  'Buzz Cut'
 ]
 
 const preciosServicio = {
-  'Corte Clasico': 15000,
-  'Corte Moderno': 18000,
-  'Corte Degradado': 20000,
-  'Corte Infantil': 12000,
-  'Barba': 10000,
-  'Diseño De Barba': 15000,
-  'Corte + barba': 25000,
-  'Cejas': 8000,
-  'Limpieza Facial': 20000
+  'Low Taper Fade': 20000,
+  'Butterfly Cut (Corte Mariposa)': 30000,
+  'Neo-Mullet / Short Mullet': 28000,
+  'Clavicut': 25000,
+  'Crop Texturizado': 26000,
+  'Shaggy / Wolf Cut': 30000,
+  'Soft Slick Back / Bro Flow': 22000,
+  'Bob con Flequillo Cortina': 28000,
+  'Buzz Cut': 15000
 }
 
 const duracionServicio = {
-  'Corte Clasico': 30,
-  'Corte Moderno': 40,
-  'Corte Degradado': 45,
-  'Corte Infantil': 25,
-  'Barba': 20,
-  'Diseño De Barba': 30,
-  'Corte + barba': 50,
-  'Cejas': 10,
-  'Limpieza Facial': 35
+  'Low Taper Fade': 45,
+  'Butterfly Cut (Corte Mariposa)': 60,
+  'Neo-Mullet / Short Mullet': 50,
+  'Clavicut': 45,
+  'Crop Texturizado': 45,
+  'Shaggy / Wolf Cut': 60,
+  'Soft Slick Back / Bro Flow': 40,
+  'Bob con Flequillo Cortina': 50,
+  'Buzz Cut': 20
 }
 
 const descansobarbero = {
@@ -46,97 +49,134 @@ const descansobarbero = {
   'Mario': [5, 0]
 }
 
-const formulario = ref({
-  id: null,
-  cliente: '',
-  telefono: '',
-  tipoServicio: '',
-  barbero: '',
-  fecha: '',
-  hora: '',
-  precio: 0,
-  metodoPago: '',
-  estadoPago: '',
-  montoAbonado: 0,
-  calificacion: 0,
-  observaciones: '',
-  finalizado: false
-})
+// adicionales que se le pueden sumar al corte, cada uno con su precio
+const preciosAdicionales = {
+  'Masaje Facial': 8000,
+  'Perfilada De Cejas': 5000,
+  'Decoloración': 20000,
+  'Mascarilla Facial': 10000,
+  'Baño De Pelo': 12000,
+  'Diseño De Barba': 10000,
+  'Retoque De Barba': 6000
+}
+const listaAdicionales = Object.keys(preciosAdicionales)
+
+// menu de bebidas y snacks, separado por categoria para mostrarlo ordenado
+const menuAlcohol = [
+  { nombre: 'Cerveza Nacional', precio: 7000 },
+  { nombre: 'Cerveza Importada', precio: 12000 },
+  { nombre: 'Cerveza Artesanal', precio: 15000 },
+  { nombre: 'Michelada Clásica', precio: 10000 },
+  { nombre: 'Michelada De Sabores', precio: 13000 },
+  { nombre: 'Michelada Con Clamato', precio: 16000 },
+  { nombre: 'Whisky En Las Rocas', precio: 22000 },
+  { nombre: 'Ron Añejo', precio: 15000 },
+  { nombre: 'Crema De Whisky', precio: 17000 },
+  { nombre: 'Gin-Tonic', precio: 27000 },
+  { nombre: 'Copa De Vino Tinto', precio: 18000 }
+]
+const menuFrias = [
+  { nombre: 'Gaseosa', precio: 5000 },
+  { nombre: 'Agua Mineral', precio: 3500 },
+  { nombre: 'Agua Con Gas', precio: 4000 },
+  { nombre: 'Energizante', precio: 12000 },
+  { nombre: 'Té Frío', precio: 6000 },
+  { nombre: 'Agua Tónica', precio: 6000 },
+  { nombre: 'Granizado Sin Alcohol', precio: 10000 },
+  { nombre: 'Jugo Embotellado', precio: 5000 }
+]
+const menuCalientes = [
+  { nombre: 'Café Espresso', precio: 4000 },
+  { nombre: 'Café Americano', precio: 5000 },
+  { nombre: 'Capuchino', precio: 7000 },
+  { nombre: 'Moca', precio: 8000 },
+  { nombre: 'Café Con Leche', precio: 6000 },
+  { nombre: 'Carajillo', precio: 12000 },
+  { nombre: 'Chocolate Caliente', precio: 7000 },
+  { nombre: 'Té Verde', precio: 5000 },
+  { nombre: 'Infusión De Frutas', precio: 5000 }
+]
+const menuSnacks = [
+  { nombre: 'Mix De Frutos Secos', precio: 4500 },
+  { nombre: 'Papas O Snack De Paquete', precio: 4500 },
+  { nombre: 'Platanitos Con Dip', precio: 8000 },
+  { nombre: 'Tabla De Quesos Y Jamón', precio: 22000 },
+  { nombre: 'Galletas', precio: 3500 },
+  { nombre: 'Chocolate O Barra De Cereal', precio: 4500 },
+  { nombre: 'Gomitas', precio: 3500 }
+]
+
+function formularioVacio() {
+  return {
+    id: null,
+    cliente: '',
+    telefono: '',
+    tipoServicio: '',
+    barbero: '',
+    fecha: '',
+    hora: '',
+    precioBase: 0,
+    adicionales: [],
+    consumos: [],
+    playlist: '',
+    metodoPago: '',
+    estadoPago: '',
+    montoAbonado: 0,
+    calificacion: 0,
+    observaciones: '',
+    finalizado: false
+  }
+}
+
+function reservaVacia() {
+  return {
+    id: null,
+    cliente: '',
+    telefono: '',
+    tipoServicio: '',
+    barbero: '',
+    fecha: '',
+    hora: ''
+  }
+}
+
+const formulario = ref(formularioVacio())
+const reservaFormulario = ref(reservaVacia())
 
 const mostrarmodal = ref(false)
 const idEditando = ref(null)
+const mostrarModalReserva = ref(false)
+const mensajeErorReserva = ref('')
+const guardandoReserva = ref(false)
+
 const mostrarConfirmacion = ref(false)
 const idEliminar = ref(null)
+const tipoEliminar = ref('servicio') // 'servicio' o 'reserva'
+
 const mensajeEror = ref('')
+const resumenDia = ref(0)
+const resumenVisible = ref(false)
 const guardando = ref(false)
 const mostrarModalFinalizar = ref(false)
 const idFinalizando = ref(null)
 const calificacionFinal = ref(0)
 const observacionesFinal = ref('')
 const guardandoFinalizacion = ref(false)
+const serviciosHechosHoy = ref(0)
+const serviciosReservaHoy = ref(0)
 const filtroBarbero = ref('Todos')
-
-const resumenDia = computed(() => {
-  let total = 0
-  const hoy = obtenerFechaHoy()
-
-  for (let i = 0; i < servicios.value.length; i++) {
-    const servicio = servicios.value[i]
-
-    if (servicio.fecha === hoy) {
-      if (servicio.estadoPago === 'Pagado') {
-        total += Number(servicio.precio || 0)
-      } else if (servicio.estadoPago === 'abonado') {
-        total += Number(servicio.montoAbonado || 0)
-      }
-    }
-  }
-
-  return total
-})
-
-const serviciosHechosHoy = computed(() => {
-  let cantidad = 0
-  const hoy = obtenerFechaHoy()
-
-  for (let i = 0; i < servicios.value.length; i++) {
-    const servicio = servicios.value[i]
-
-    if (servicio.fecha === hoy && servicio.finalizado === true) {
-      cantidad++
-    }
-  }
-
-  return cantidad
-})
-
-const serviciosReservaHoy = computed(() => {
-  let cantidad = 0
-  const hoy = obtenerFechaHoy()
-
-  for (let i = 0; i < servicios.value.length; i++) {
-    const servicio = servicios.value[i]
-
-    if (servicio.fecha === hoy && servicio.finalizado !== true) {
-      cantidad++
-    }
-  }
-
-  return cantidad
-})
 
 function obtenerListaVisible() {
   if (filtroBarbero.value === 'Todos') {
     return servicios.value
   }
-
-  return servicios.value.filter(function(s) {
+  return servicios.value.filter(function (s) {
     return s.barbero === filtroBarbero.value
   })
 }
 
 function obtenerServicioFinalizando() {
-  return servicios.value.find(function(s) {
+  return servicios.value.find(function (s) {
     return s.id === idFinalizando.value
   }) || null
 }
@@ -146,7 +186,7 @@ function inicialesCliente(nombre) {
 }
 
 function actualizarPrecio() {
-  formulario.value.precio = preciosServicio[formulario.value.tipoServicio] || 0
+  formulario.value.precioBase = preciosServicio[formulario.value.tipoServicio]
 }
 
 function formatearPrecio(precio) {
@@ -154,7 +194,46 @@ function formatearPrecio(precio) {
 }
 
 function calcularSaldoPendiente(servicio) {
-  return Number(servicio.precio || 0) - Number(servicio.montoAbonado || 0)
+  return Number(servicio.precio) - Number(servicio.montoAbonado || 0)
+}
+
+// busca el precio de un consumo (bebida o snack) por su nombre, en las 4 listas juntas
+function precioConsumo(nombre) {
+  const todos = menuAlcohol.concat(menuFrias, menuCalientes, menuSnacks)
+  const encontrado = todos.find(function (item) {
+    return item.nombre === nombre
+  })
+  return encontrado ? encontrado.precio : 0
+}
+
+// suma precio base + todos los adicionales + todos los consumos marcados
+function calcularTotalFormulario() {
+  let total = Number(formulario.value.precioBase || 0)
+  for (let i = 0; i < formulario.value.adicionales.length; i++) {
+    total += preciosAdicionales[formulario.value.adicionales[i]] || 0
+  }
+  for (let i = 0; i < formulario.value.consumos.length; i++) {
+    total += precioConsumo(formulario.value.consumos[i])
+  }
+  return total
+}
+
+function toggleAdicional(nombre) {
+  const index = formulario.value.adicionales.indexOf(nombre)
+  if (index === -1) {
+    formulario.value.adicionales.push(nombre)
+  } else {
+    formulario.value.adicionales.splice(index, 1)
+  }
+}
+
+function toggleConsumo(nombre) {
+  const index = formulario.value.consumos.indexOf(nombre)
+  if (index === -1) {
+    formulario.value.consumos.push(nombre)
+  } else {
+    formulario.value.consumos.splice(index, 1)
+  }
 }
 
 function esFechaPasada(fechaTexto, horaTexto) {
@@ -164,14 +243,6 @@ function esFechaPasada(fechaTexto, horaTexto) {
 }
 
 function obtenerFechaMinima() {
-  const hoy = new Date()
-  const anio = hoy.getFullYear()
-  const mes = String(hoy.getMonth() + 1).padStart(2, '0')
-  const dia = String(hoy.getDate()).padStart(2, '0')
-  return anio + '-' + mes + '-' + dia
-}
-
-function obtenerFechaHoy() {
   const hoy = new Date()
   const anio = hoy.getFullYear()
   const mes = String(hoy.getMonth() + 1).padStart(2, '0')
@@ -194,54 +265,85 @@ function obtenerbloqueshorario(diasemana) {
   if (diasemana === 0) {
     return [{ inicio: '09:00', fin: '12:30' }]
   }
-
   if (diasemana === 6) {
     return [{ inicio: '09:00', fin: '16:00' }]
   }
-
   return [
     { inicio: '08:30', fin: '12:30' },
     { inicio: '14:00', fin: '18:00' }
   ]
 }
 
-function obtenerHoraMinima() {
-  if (formulario.value.fecha === '') {
-    return '00:00'
-  }
-
-  const dia = new Date(formulario.value.fecha + 'T00:00:00').getDay()
+// genera todas las horas posibles cada 30 min dentro del horario de atencion de ese dia
+function generarSlotsDelDia(fechaTexto) {
+  if (fechaTexto === '') return []
+  const dia = new Date(fechaTexto + 'T00:00:00').getDay()
   const bloques = obtenerbloqueshorario(dia)
-  return bloques[0].inicio
+  const slots = []
+  for (let b = 0; b < bloques.length; b++) {
+    let actual = horaaminutos(bloques[b].inicio)
+    const fin = horaaminutos(bloques[b].fin)
+    while (actual < fin) {
+      const horas = String(Math.floor(actual / 60)).padStart(2, '0')
+      const minutos = String(actual % 60).padStart(2, '0')
+      slots.push(horas + ':' + minutos)
+      actual += 30
+    }
+  }
+  return slots
 }
 
-function obtenerHoraMaxima() {
-  if (formulario.value.fecha === '') {
-    return '23:59'
-  }
+// revisa si ese barbero ya tiene una cita (servicio o reserva) que se cruza con la hora nueva
+function horaOcupada(barbero, fecha, hora, tipoServicio, idExcluir) {
+  if (barbero === '' || fecha === '' || tipoServicio === '') return false
 
-  const dia = new Date(formulario.value.fecha + 'T00:00:00').getDay()
-  const bloques = obtenerbloqueshorario(dia)
-  return bloques[bloques.length - 1].fin
+  const duracionNueva = duracionServicio[tipoServicio] || 60
+  const inicioNuevo = horaaminutos(hora)
+  const finNuevo = inicioNuevo + duracionNueva
+
+  const todasLasCitas = servicios.value.concat(reservas.value)
+
+  for (let i = 0; i < todasLasCitas.length; i++) {
+    const cita = todasLasCitas[i]
+    if (cita.id === idExcluir) continue
+    if (cita.barbero !== barbero) continue
+    if (cita.fecha !== fecha) continue
+
+    const duracionExistente = duracionServicio[cita.tipoServicio] || 60
+    const inicioExistente = horaaminutos(cita.hora)
+    const finExistente = inicioExistente + duracionExistente
+
+    if (inicioNuevo < finExistente && inicioExistente < finNuevo) {
+      return true
+    }
+  }
+  return false
 }
 
-function validarHorario() {
-  if (barberodescansaesedia(formulario.value.barbero, formulario.value.fecha)) {
-    return formulario.value.barbero + ' descansa ese día'
+// slots disponibles para el select del modal principal, ya filtrando ocupados
+function generarSlotsDisponibles() {
+  return generarSlotsDelDia(formulario.value.fecha)
+}
+
+function generarSlotsDisponiblesReserva() {
+  return generarSlotsDelDia(reservaFormulario.value.fecha)
+}
+
+function validarHorario(barbero, fecha, hora, tipoServicio) {
+  if (barberodescansaesedia(barbero, fecha)) {
+    return barbero + ' descansa ese día'
   }
 
-  const fecha = new Date(formulario.value.fecha + 'T00:00:00')
-  const diasemana = fecha.getDay()
-  const bloques = obtenerbloqueshorario(diasemana)
-  const duracion = duracionServicio[formulario.value.tipoServicio]
-  const inicioMinutos = horaaminutos(formulario.value.hora)
+  const dia = new Date(fecha + 'T00:00:00').getDay()
+  const bloques = obtenerbloqueshorario(dia)
+  const duracion = duracionServicio[tipoServicio]
+  const inicioMinutos = horaaminutos(hora)
   const finMinutos = inicioMinutos + duracion
-  let cabeEnAlgunBloque = false
 
+  let cabeEnAlgunBloque = false
   for (let i = 0; i < bloques.length; i++) {
     const inicioBloque = horaaminutos(bloques[i].inicio)
     const finBloque = horaaminutos(bloques[i].fin)
-
     if (inicioMinutos >= inicioBloque && finMinutos <= finBloque) {
       cabeEnAlgunBloque = true
       break
@@ -256,156 +358,156 @@ function validarHorario() {
 }
 
 function guardarServicio() {
-  mensajeEror.value = ''
-
-  if (!formulario.value.cliente.trim()) {
-    mensajeEror.value = 'Ingrese el nombre del cliente'
+  if (formulario.value.cliente.trim() === "") {
+    mensajeEror.value = 'El nombre del cliente es obligatorio'
     return
   }
-
-  if (!formulario.value.telefono.trim()) {
-    mensajeEror.value = 'Ingrese el teléfono del cliente'
+  if (formulario.value.telefono.trim() === "") {
+    mensajeEror.value = 'El teléfono del cliente es obligatorio'
     return
   }
-
-  if (!formulario.value.tipoServicio) {
-    mensajeEror.value = 'Seleccione un servicio'
+  if (formulario.value.tipoServicio === '') {
+    mensajeEror.value = 'Seleccione un tipo de servicio'
     return
   }
-
-  if (!formulario.value.barbero) {
+  if (formulario.value.barbero === '') {
     mensajeEror.value = 'Seleccione un barbero'
     return
   }
-
-  if (!formulario.value.fecha) {
+  if (formulario.value.fecha === '') {
     mensajeEror.value = 'Seleccione una fecha'
     return
   }
-
-  if (!formulario.value.hora) {
+  if (formulario.value.hora === '') {
     mensajeEror.value = 'Seleccione una hora'
     return
   }
-
-  if (!formulario.value.metodoPago) {
-    mensajeEror.value = 'Seleccione el método de pago'
+  if (formulario.value.metodoPago === '') {
+    mensajeEror.value = 'Seleccione un método de pago'
     return
   }
-
-  if (!formulario.value.estadoPago) {
-    mensajeEror.value = 'Seleccione el estado del pago'
+  if (formulario.value.estadoPago === '') {
+    mensajeEror.value = 'Seleccione un estado de pago'
     return
   }
-
   if (esFechaPasada(formulario.value.fecha, formulario.value.hora)) {
-    mensajeEror.value = 'No puede seleccionar una fecha u hora pasada'
+    mensajeEror.value = 'No puede reservar en una fecha o hora que ya pasó'
     return
   }
 
-  if (formulario.value.estadoPago === 'abonado' && Number(formulario.value.montoAbonado || 0) <= 0) {
-    mensajeEror.value = 'Ingrese el valor del abono'
-    return
+  const total = calcularTotalFormulario()
+
+  if (formulario.value.estadoPago === 'abonado') {
+    if (formulario.value.montoAbonado <= 0) {
+      mensajeEror.value = 'Debe indicar cuánto abonó el cliente'
+      return
+    }
+    if (formulario.value.montoAbonado >= total) {
+      mensajeEror.value = 'El abono no puede ser igual o mayor al total'
+      return
+    }
   }
 
-  if (formulario.value.estadoPago === 'abonado' && Number(formulario.value.montoAbonado) >= Number(formulario.value.precio)) {
-    mensajeEror.value = 'El abono debe ser menor al precio total'
-    return
-  }
-
-  const errorHorario = validarHorario()
-
-  if (errorHorario) {
+  const errorHorario = validarHorario(
+    formulario.value.barbero,
+    formulario.value.fecha,
+    formulario.value.hora,
+    formulario.value.tipoServicio
+  )
+  if (errorHorario !== '') {
     mensajeEror.value = errorHorario
     return
   }
 
+  if (horaOcupada(formulario.value.barbero, formulario.value.fecha, formulario.value.hora, formulario.value.tipoServicio, formulario.value.id)) {
+    mensajeEror.value = 'Ese barbero ya tiene una cita a esa hora'
+    return
+  }
+
+  mensajeEror.value = ''
   guardando.value = true
 
   setTimeout(() => {
     if (formulario.value.estadoPago !== 'abonado') {
       formulario.value.montoAbonado = 0
     }
+    formulario.value.precio = calcularTotalFormulario()
 
     if (idEditando.value === null) {
-      const nuevoServicio = {
-        ...formulario.value,
-        id: Date.now(),
-        finalizado: false
-      }
-
-      servicios.value.push(nuevoServicio)
+      formulario.value.id = Date.now()
+      formulario.value.finalizado = false
+      servicios.value.push({ ...formulario.value })
     } else {
       for (let i = 0; i < servicios.value.length; i++) {
         if (servicios.value[i].id === idEditando.value) {
-          servicios.value[i] = {
-            ...formulario.value,
-            id: idEditando.value
-          }
+          servicios.value[i] = { ...formulario.value }
           break
         }
       }
     }
-
     guardando.value = false
+    contarServiciosDelDia()
+    if (resumenVisible.value) {
+      verResumenDia()
+    }
     mostrarmodal.value = false
     limpiarFormulario()
   }, 2000)
 }
 
 function limpiarFormulario() {
-  formulario.value = {
-    id: null,
-    cliente: '',
-    telefono: '',
-    tipoServicio: '',
-    barbero: '',
-    fecha: '',
-    hora: '',
-    precio: 0,
-    metodoPago: '',
-    estadoPago: '',
-    montoAbonado: 0,
-    calificacion: 0,
-    observaciones: '',
-    finalizado: false
-  }
-
+  formulario.value = formularioVacio()
   idEditando.value = null
   mensajeEror.value = ''
 }
 
 function abrirModalNuevo() {
   limpiarFormulario()
-  formulario.value.fecha = obtenerFechaMinima()
   mostrarmodal.value = true
 }
 
 function abrirModalEditar(servicio) {
-  formulario.value = { ...servicio }
+  formulario.value = {
+    ...servicio,
+    adicionales: servicio.adicionales ? [...servicio.adicionales] : [],
+    consumos: servicio.consumos ? [...servicio.consumos] : []
+  }
   idEditando.value = servicio.id
-  mensajeEror.value = ''
   mostrarmodal.value = true
 }
 
 function cerrarModal() {
+  if (guardando.value) return
   mostrarmodal.value = false
   limpiarFormulario()
 }
 
-function abrirConfirmacion(id) {
+function abrirConfirmacion(id, tipo) {
   idEliminar.value = id
+  tipoEliminar.value = tipo || 'servicio'
   mostrarConfirmacion.value = true
 }
 
 function confirmarEliminacion() {
-  for (let i = 0; i < servicios.value.length; i++) {
-    if (servicios.value[i].id === idEliminar.value) {
-      servicios.value.splice(i, 1)
-      break
+  if (tipoEliminar.value === 'servicio') {
+    for (let i = 0; i < servicios.value.length; i++) {
+      if (servicios.value[i].id === idEliminar.value) {
+        servicios.value.splice(i, 1)
+        break
+      }
+    }
+    contarServiciosDelDia()
+    if (resumenVisible.value) {
+      verResumenDia()
+    }
+  } else {
+    for (let i = 0; i < reservas.value.length; i++) {
+      if (reservas.value[i].id === idEliminar.value) {
+        reservas.value.splice(i, 1)
+        break
+      }
     }
   }
-
   mostrarConfirmacion.value = false
   idEliminar.value = null
 }
@@ -418,19 +520,18 @@ function abrirFinalizar(servicio) {
 }
 
 function ponerCalificacion(estrella) {
+  if (guardandoFinalizacion.value) return
   calificacionFinal.value = estrella
 }
 
 function cerrarFinalizar() {
+  if (guardandoFinalizacion.value) return
   mostrarModalFinalizar.value = false
   idFinalizando.value = null
-  calificacionFinal.value = 0
-  observacionesFinal.value = ''
 }
 
 function guardarFinalizacion() {
   guardandoFinalizacion.value = true
-
   setTimeout(() => {
     for (let i = 0; i < servicios.value.length; i++) {
       if (servicios.value[i].id === idFinalizando.value) {
@@ -440,891 +541,483 @@ function guardarFinalizacion() {
         break
       }
     }
-
     guardandoFinalizacion.value = false
+    contarServiciosDelDia()
+    if (resumenVisible.value) {
+      verResumenDia()
+    }
     mostrarModalFinalizar.value = false
     idFinalizando.value = null
   }, 1500)
 }
+
+function verResumenDia() {
+  let total = 0
+  const hoy = new Date().toISOString().split('T')[0]
+  for (let i = 0; i < servicios.value.length; i++) {
+    if (servicios.value[i].fecha === hoy) {
+      total += Number(servicios.value[i].precio)
+    }
+  }
+  resumenDia.value = total
+  resumenVisible.value = true
+}
+
+function contarServiciosDelDia() {
+  let hechos = 0
+  let reservados = 0
+  const hoy = new Date().toISOString().split('T')[0]
+
+  for (let i = 0; i < servicios.value.length; i++) {
+    if (servicios.value[i].fecha === hoy) {
+      if (servicios.value[i].finalizado) {
+        hechos = hechos + 1
+      } else {
+        reservados = reservados + 1
+      }
+    }
+  }
+
+  serviciosHechosHoy.value = hechos
+  serviciosReservaHoy.value = reservados
+}
+
+// --- funciones para el modulo de reservas a futuro ---
+
+function abrirModalReserva() {
+  reservaFormulario.value = reservaVacia()
+  mensajeErorReserva.value = ''
+  mostrarModalReserva.value = true
+}
+
+function cerrarModalReserva() {
+  if (guardandoReserva.value) return
+  mostrarModalReserva.value = false
+}
+
+function guardarReserva() {
+  if (reservaFormulario.value.cliente.trim() === "") {
+    mensajeErorReserva.value = 'El nombre del cliente es obligatorio'
+    return
+  }
+  if (reservaFormulario.value.telefono.trim() === "") {
+    mensajeErorReserva.value = 'El teléfono es obligatorio'
+    return
+  }
+  if (reservaFormulario.value.tipoServicio === '') {
+    mensajeErorReserva.value = 'Seleccione un tipo de servicio'
+    return
+  }
+  if (reservaFormulario.value.barbero === '') {
+    mensajeErorReserva.value = 'Seleccione un barbero'
+    return
+  }
+  if (reservaFormulario.value.fecha === '') {
+    mensajeErorReserva.value = 'Seleccione una fecha'
+    return
+  }
+  if (reservaFormulario.value.hora === '') {
+    mensajeErorReserva.value = 'Seleccione una hora'
+    return
+  }
+  if (esFechaPasada(reservaFormulario.value.fecha, reservaFormulario.value.hora)) {
+    mensajeErorReserva.value = 'No puede reservar en una fecha u hora que ya pasó'
+    return
+  }
+
+  const errorHorario = validarHorario(
+    reservaFormulario.value.barbero,
+    reservaFormulario.value.fecha,
+    reservaFormulario.value.hora,
+    reservaFormulario.value.tipoServicio
+  )
+  if (errorHorario !== '') {
+    mensajeErorReserva.value = errorHorario
+    return
+  }
+
+  if (horaOcupada(reservaFormulario.value.barbero, reservaFormulario.value.fecha, reservaFormulario.value.hora, reservaFormulario.value.tipoServicio, null)) {
+    mensajeErorReserva.value = 'Ese barbero ya tiene una cita a esa hora'
+    return
+  }
+
+  mensajeErorReserva.value = ''
+  guardandoReserva.value = true
+
+  setTimeout(() => {
+    reservaFormulario.value.id = Date.now()
+    reservas.value.push({ ...reservaFormulario.value })
+    guardandoReserva.value = false
+    mostrarModalReserva.value = false
+  }, 1500)
+}
+
+// cuando el cliente llega, la reserva se convierte en un servicio real y se abre para completar el pago
+function clienteLlego(reserva) {
+  const nuevoServicio = {
+    ...formularioVacio(),
+    id: Date.now(),
+    cliente: reserva.cliente,
+    telefono: reserva.telefono,
+    tipoServicio: reserva.tipoServicio,
+    barbero: reserva.barbero,
+    fecha: reserva.fecha,
+    hora: reserva.hora,
+    precioBase: preciosServicio[reserva.tipoServicio] || 0
+  }
+  servicios.value.push(nuevoServicio)
+
+  for (let i = 0; i < reservas.value.length; i++) {
+    if (reservas.value[i].id === reserva.id) {
+      reservas.value.splice(i, 1)
+      break
+    }
+  }
+
+  contarServiciosDelDia()
+  abrirModalEditar(nuevoServicio)
+}
+
+contarServiciosDelDia()
 </script>
 
 <template>
-
   <div class="gale-app">
-
     <aside class="sidebar">
-
       <div class="brand">
-
         <div class="brand-mark">✂</div>
-
         <div>
           <h1 class="serif">GALÉ</h1>
           <p>Barber Studio</p>
         </div>
-
       </div>
-
       <div class="turno-activo">
-        <span class="dot"></span>
-        Turno activo
-        <span class="time">10:00–20:00</span>
+        <span class="dot"></span> Turno activo <span class="time">10:00–20:00</span>
       </div>
-
       <nav class="nav-list">
         <div class="nav-item active">▦ Panel de Servicios</div>
       </nav>
-
       <div class="sidebar-foot">
-
-        <div class="capacidad-label">
-          <span>Sillones ocupados</span>
-          <span>4/5</span>
-        </div>
-
-        <div class="capacidad-bar">
-          <div class="capacidad-fill"></div>
-        </div>
-
+        <div class="capacidad-label"><span>Sillones ocupados</span><span>4/5</span></div>
+        <div class="capacidad-bar"><div class="capacidad-fill"></div></div>
       </div>
-
     </aside>
-
-    <!-- MAIN -->
-
     <main class="main">
-
       <div class="topbar">
-
-        <div class="pill">
-          📅 Hoy,
-          {{ new Date().toLocaleDateString('es-CO', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-          }) }}
-        </div>
-
-        <div class="pill mint">
-          ⏱ Pico de afluencia: 17:30–19:30
-        </div>
-
+        <div class="pill">📅 Hoy, {{ new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
+        <div class="pill mint">⏱ Pico de afluencia: 17:30–19:30</div>
         <div class="topbar-spacer"></div>
-
         <div class="icon-btn">🔍</div>
-
         <div class="icon-btn">🔔</div>
-
         <div class="profile">
-
           <div class="profile-avatar">MG</div>
-
           <div>
             <div class="profile-name">Marcello Galé</div>
             <div class="profile-role">Head Barber / Admin</div>
           </div>
-
         </div>
-
       </div>
-
       <div class="header-row">
-
         <div>
-
-          <p class="header-eyebrow">
-            CONSOLA DE ADMINISTRACIÓN
-          </p>
-
-          <h2 class="serif">
-            Gestiona los servicios de
-            <em>tu barbería</em>
-          </h2>
-
-          <p class="sub">
-            Reservas, cobros y calidad de atención, todo en un mismo panel, fácil y rápido.
-          </p>
-
+          <p class="header-eyebrow">CONSOLA DE ADMINISTRACIÓN</p>
+          <h2 class="serif">Gestiona los servicios de <em>tu barbería</em></h2>
+          <p class="sub">Reservas, cobros y calidad de atención, todo en un mismo panel, fácil y rápido.</p>
         </div>
-
-        <button
-          class="btn-nuevo"
-          @click="abrirModalNuevo"
-        >
-          + Nuevo Servicio
-        </button>
-
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-nuevo" @click="abrirModalNuevo">+ Nuevo Servicio</button>
+          <button class="btn-nuevo" @click="abrirModalReserva" style="background:transparent;border:1px solid var(--line);color:var(--gold-soft);box-shadow:none">📆 Nueva Reserva</button>
+        </div>
       </div>
-
       <div class="stats-row">
-
         <div class="stat-card">
-
           <div class="stat-top">
-
-            <span class="stat-label">
-              Servicios de hoy
-            </span>
-
-            <div class="stat-icon">
-              📈
-            </div>
-
+            <span class="stat-label">Servicios de hoy</span>
+            <div class="stat-icon">📈</div>
           </div>
-
-          <div class="stat-value">
-            {{ serviciosHechosHoy }}
-            <small>completados</small>
-          </div>
-
+          <div class="stat-value">{{ serviciosHechosHoy }}<small>completados</small></div>
         </div>
-
         <div class="stat-card">
-
           <div class="stat-top">
-
-            <span class="stat-label">
-              En reserva hoy
-            </span>
-
-            <div class="stat-icon">
-              ⏱
-            </div>
-
+            <span class="stat-label">En reserva hoy</span>
+            <div class="stat-icon">⏱</div>
           </div>
-
-          <div class="stat-value">
-            {{ serviciosReservaHoy }}
-            <small>en espera</small>
-          </div>
-
+          <div class="stat-value">{{ serviciosReservaHoy }}<small>en espera</small></div>
         </div>
-
         <div class="stat-card">
-
           <div class="stat-top">
-
-            <span class="stat-label">
-              Total vendido hoy
-            </span>
-
-            <div class="stat-icon">
-              💰
-            </div>
-
+            <span class="stat-label">Total vendido hoy</span>
+            <div class="stat-icon">💰</div>
           </div>
-
-          <div class="stat-money">
-            ${{ formatearPrecio(resumenDia) }}
-
-            <small style="font-size:0.8rem;color:var(--text-dim)">
-              COP
-            </small>
-          </div>
-
+          <div v-if="resumenVisible" class="stat-money">${{ formatearPrecio(resumenDia) }} <small style="font-size:0.8rem;color:var(--text-dim)">COP</small></div>
+          <button v-else class="stat-btn" @click="verResumenDia">Ver resumen del día</button>
         </div>
-
+        <div class="stat-card">
+          <div class="stat-top">
+            <span class="stat-label">Reservas agendadas</span>
+            <div class="stat-icon">📆</div>
+          </div>
+          <div class="stat-value">{{ reservas.length }}<small>a futuro</small></div>
+        </div>
       </div>
-
       <div class="section-head">
-
-        <h3 class="serif">
-          Servicios Registrados
-
-          <span class="count">
-            {{ obtenerListaVisible().length }}
-            de
-            {{ servicios.length }}
-          </span>
-
-        </h3>
-
+        <h3 class="serif">Servicios Registrados <span class="count">{{ obtenerListaVisible().length }} de {{ servicios.length }}</span></h3>
         <div class="filtros">
-
-          <button
-            v-for="b in ['Todos', ...barberos]"
-            :key="b"
-            class="filtro-btn"
-            :class="{ active: filtroBarbero === b }"
-            @click="filtroBarbero = b"
-          >
-            {{ b }}
-          </button>
-
+          <button v-for="b in ['Todos', ...barberos]" :key="b" class="filtro-btn" :class="{ active: filtroBarbero === b }" @click="filtroBarbero = b">{{ b }}</button>
         </div>
-
       </div>
-
-      <p
-        class="sin-registros"
-        v-if="obtenerListaVisible().length === 0"
-      >
-        Aún no hay servicios registrados para este filtro.
-        ¡Agrega el primero!
-      </p>
-
+      <p class="sin-registros" v-if="obtenerListaVisible().length === 0">Aún no hay servicios registrados para este filtro. ¡Agrega el primero!</p>
       <div class="servicios-grid">
-
-        <div
-          v-for="servicio in obtenerListaVisible()"
-          :key="servicio.id"
-          class="tarjeta"
-          :class="{
-            pendiente: servicio.estadoPago === 'Pendiente',
-            abonado: servicio.estadoPago === 'abonado',
-            pagado: servicio.estadoPago === 'Pagado'
-          }"
-        >
-
+        <div v-for="servicio in obtenerListaVisible()" :key="servicio.id" class="tarjeta" :class="{ pendiente: servicio.estadoPago === 'Pendiente', abonado: servicio.estadoPago === 'abonado', pagado: servicio.estadoPago === 'Pagado' }">
           <div class="tarjeta-header">
-
-            <h4 class="serif">
-              {{ servicio.cliente }}
-            </h4>
-
-            <span
-              class="badge badge-pagado"
-              v-if="servicio.estadoPago === 'Pagado'"
-            >
-              Pagado
-            </span>
-
-            <span
-              class="badge badge-pendiente"
-              v-else-if="servicio.estadoPago === 'Pendiente'"
-            >
-              Pendiente
-            </span>
-
-            <span
-              class="badge badge-abonado"
-              v-else-if="servicio.estadoPago === 'abonado'"
-            >
-              Abonado
-            </span>
-
+            <h4 class="serif">{{ servicio.cliente }}</h4>
+            <span class="badge badge-pagado" v-if="servicio.estadoPago === 'Pagado'">Pagado</span>
+            <span class="badge badge-pendiente" v-else-if="servicio.estadoPago === 'Pendiente'">Pendiente</span>
+            <span class="badge badge-abonado" v-else-if="servicio.estadoPago === 'abonado'">Abonado</span>
           </div>
-
-          <div class="tarjeta-row">
-            📞 {{ servicio.telefono }}
-          </div>
-
-          <div class="tarjeta-row">
-            ✂
-            <b>{{ servicio.tipoServicio }}</b>
-            · {{ servicio.barbero }}
-          </div>
-
-          <div class="tarjeta-row">
-            📅 {{ servicio.fecha }} · {{ servicio.hora }}
-          </div>
-
-          <div
-            class="tarjeta-row"
-            v-if="servicio.metodoPago"
-          >
-            Pago con
-            {{ servicio.metodoPago === 'Trasferencia'
-              ? 'Transferencia'
-              : servicio.metodoPago }}
-          </div>
-
-          <div class="tarjeta-precio serif">
-            ${{ formatearPrecio(servicio.precio) }}
-
-            <small
-              style="font-size:0.7rem;color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif"
-            >
-              COP
-            </small>
-          </div>
-
-          <!-- si esta abonado, muestro cuanto abono y cuanto falta -->
-
-          <div
-            v-if="servicio.estadoPago === 'abonado'"
-            class="info-abono"
-          >
+          <div class="tarjeta-row">📞 {{ servicio.telefono }}</div>
+          <div class="tarjeta-row">✂ <b>{{ servicio.tipoServicio }}</b> · {{ servicio.barbero }}</div>
+          <div class="tarjeta-row">📅 {{ servicio.fecha }} · {{ servicio.hora }}</div>
+          <div class="tarjeta-row" v-if="servicio.metodoPago">Pago con {{ servicio.metodoPago === 'Trasferencia' ? 'Transferencia' : servicio.metodoPago }}</div>
+          <div class="tarjeta-row" v-if="servicio.adicionales && servicio.adicionales.length > 0">➕ {{ servicio.adicionales.join(', ') }}</div>
+          <div class="tarjeta-row" v-if="servicio.consumos && servicio.consumos.length > 0">🍹 {{ servicio.consumos.join(', ') }}</div>
+          <div class="tarjeta-row" v-if="servicio.playlist">🎵 {{ servicio.playlist }}</div>
+          <div class="tarjeta-precio serif">${{ formatearPrecio(servicio.precio) }} <small style="font-size:0.7rem;color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif">COP</small></div>
+          <div v-if="servicio.estadoPago === 'abonado'" class="info-abono">
             Abonó ${{ formatearPrecio(servicio.montoAbonado) }} COP
-
-            <div class="falta">
-              Falta ${{ formatearPrecio(calcularSaldoPendiente(servicio)) }} COP
-            </div>
-
+            <div class="falta">Falta ${{ formatearPrecio(calcularSaldoPendiente(servicio)) }} COP</div>
           </div>
-
-          <div
-            v-if="!servicio.finalizado"
-            class="en-curso"
-          >
-
-            <span>
-              Servicio en curso
-            </span>
-
-            <button
-              class="btn-finalizar"
-              @click="abrirFinalizar(servicio)"
-            >
-              Finalizar
-            </button>
-
+          <div v-if="!servicio.finalizado" class="en-curso">
+            <span>Servicio en curso</span>
+            <button class="btn-finalizar" @click="abrirFinalizar(servicio)">Finalizar</button>
           </div>
-
-          <div
-            v-else
-            class="resultado-final"
-          >
-
-            <span
-              v-if="servicio.calificacion <= 2"
-              class="calificacion-baja"
-            >
-              ⚠ Calificación baja
-              ({{ servicio.calificacion }}/5)
-            </span>
-
-            <span
-              v-else
-              class="calificacion-alta"
-            >
-              ★ {{ servicio.calificacion }}/5
-            </span>
-
+          <div v-else class="resultado-final">
+            <span v-if="servicio.calificacion <= 2" class="calificacion-baja">⚠ Calificación baja ({{ servicio.calificacion }}/5)</span>
+            <span v-else class="calificacion-alta">★ {{ servicio.calificacion }}/5</span>
           </div>
-
-          <p
-            v-if="servicio.finalizado && servicio.observaciones"
-            class="observaciones"
-          >
-            {{ servicio.observaciones }}
-          </p>
-
+          <p v-if="servicio.finalizado && servicio.observaciones" class="observaciones">{{ servicio.observaciones }}</p>
           <div class="acciones">
-
-            <button
-              @click="abrirModalEditar(servicio)"
-            >
-              ✎ Editar
-            </button>
-
-            <button
-              class="eliminar"
-              @click="abrirConfirmacion(servicio.id)"
-            >
-              🗑 Eliminar
-            </button>
-
+            <button @click="abrirModalEditar(servicio)">✎ Editar</button>
+            <button class="eliminar" @click="abrirConfirmacion(servicio.id, 'servicio')">🗑 Eliminar</button>
           </div>
-
         </div>
-
       </div>
-
+      <div class="section-head">
+        <h3 class="serif">Reservas Agendadas <span class="count">{{ reservas.length }}</span></h3>
+      </div>
+      <p class="sin-registros" v-if="reservas.length === 0">No hay reservas agendadas.</p>
+      <div class="servicios-grid">
+        <div v-for="reserva in reservas" :key="reserva.id" class="tarjeta">
+          <div class="tarjeta-header">
+            <h4 class="serif">{{ reserva.cliente }}</h4>
+          </div>
+          <div class="tarjeta-row">📞 {{ reserva.telefono }}</div>
+          <div class="tarjeta-row">✂ <b>{{ reserva.tipoServicio }}</b> · {{ reserva.barbero }}</div>
+          <div class="tarjeta-row">📅 {{ reserva.fecha }} · {{ reserva.hora }}</div>
+          <div class="acciones">
+            <button @click="clienteLlego(reserva)">✔ Cliente llegó</button>
+            <button class="eliminar" @click="abrirConfirmacion(reserva.id, 'reserva')">🗑 Cancelar</button>
+          </div>
+        </div>
+      </div>
       <div class="promo-banner">
-
         <div>
-
-          <p class="eyebrow">
-            EXCELENCIA BARBER STUDIO
-          </p>
-
-          <h3 class="serif">
-            Detalle, estilo y precisión en cada cita.
-          </h3>
-
-          <p>
-            Cada corte registrado queda archivado con métricas de productividad por barbero,
-            asegurando la fidelidad de nuestros clientes VIP.
-          </p>
-
+          <p class="eyebrow">EXCELENCIA BARBER STUDIO</p>
+          <h3 class="serif">Detalle, estilo y precisión en cada cita.</h3>
+          <p>Cada corte registrado queda archivado con métricas de productividad por barbero, asegurando la fidelidad de nuestros clientes VIP.</p>
         </div>
-
         <div class="promo-stats">
-
-          <div>
-            <b>4.9/5.0</b>
-            <span>Satisfacción</span>
-          </div>
-
-          <div>
-            <b>32 min</b>
-            <span>Tiempo promedio</span>
-          </div>
-
-          <div>
-            <b>✨</b>
-            <span>Servicio VIP</span>
-          </div>
-
+          <div><b>4.9/5.0</b><span>Satisfacción</span></div>
+          <div><b>32 min</b><span>Tiempo promedio</span></div>
+          <div><b>✨</b><span>Servicio VIP</span></div>
         </div>
-
       </div>
-
     </main>
-
-    <!-- MODAL: REGISTRAR / EDITAR -->
-
-    <div
-      v-if="mostrarmodal"
-      class="overlay"
-      @click.self="cerrarModal"
-    >
-
+    <div v-if="mostrarmodal" class="overlay" @click.self="cerrarModal">
       <div class="modal">
-
-        <button
-          class="modal-close"
-          @click="cerrarModal"
-        >
-          ✕
-        </button>
-
-        <p class="modal-eyebrow">
-          Atención de barbería
-        </p>
-
-        <h2 class="serif">
-          {{ idEditando === null
-            ? 'Registrar Servicio'
-            : 'Editar Servicio' }}
-        </h2>
-
-        <p class="desc">
-          Ingresa los detalles de la atención para control de turnos y facturación.
-        </p>
-
+        <button class="modal-close" @click="cerrarModal">✕</button>
+        <p class="modal-eyebrow">Atención de barbería</p>
+        <h2 class="serif">{{ idEditando === null ? 'Registrar Servicio' : 'Editar Servicio' }}</h2>
+        <p class="desc">Ingresa los detalles de la atención para control de turnos y facturación.</p>
         <form @submit.prevent="guardarServicio">
-
           <label>Nombre del cliente</label>
-
-          <input
-            type="text"
-            v-model="formulario.cliente"
-            :disabled="guardando"
-            placeholder="Ej. Alejandro Restrepo"
-          >
-
+          <input type="text" v-model="formulario.cliente" :disabled="guardando" placeholder="Ej. Alejandro Restrepo">
           <label>Teléfono del cliente</label>
-
-          <input
-            type="tel"
-            v-model="formulario.telefono"
-            :disabled="guardando"
-            placeholder="Ej: 3001234567"
-          >
-
+          <input type="tel" v-model="formulario.telefono" :disabled="guardando" placeholder="Ej: 3001234567">
           <label>Tipo de servicio</label>
-
-          <select
-            v-model="formulario.tipoServicio"
-            @change="actualizarPrecio"
-            :disabled="guardando"
-          >
-
-            <option value="">
-              Seleccione un servicio
-            </option>
-
-            <option
-              v-for="tipo in tiposServicio"
-              :key="tipo"
-              :value="tipo"
-            >
-              {{ tipo }}
-            </option>
-
+          <select v-model="formulario.tipoServicio" @change="actualizarPrecio" :disabled="guardando">
+            <option value="">Seleccione un servicio</option>
+            <option v-for="tipo in tiposServicio" :key="tipo" :value="tipo">{{ tipo }}</option>
           </select>
-
           <label>Barbero asignado</label>
-
-          <select
-            v-model="formulario.barbero"
-            :disabled="guardando"
-          >
-
-            <option value="">
-              Seleccione un barbero
-            </option>
-
-            <option
-              v-for="barbero in barberos"
-              :key="barbero"
-              :value="barbero"
-            >
-              {{ barbero }}
-            </option>
-
+          <select v-model="formulario.barbero" :disabled="guardando">
+            <option value="">Seleccione un barbero</option>
+            <option v-for="barbero in barberos" :key="barbero" :value="barbero">{{ barbero }}</option>
           </select>
-
           <div class="fila-doble">
-
             <div>
-
               <label>Fecha</label>
-
-              <input
-                type="date"
-                v-model="formulario.fecha"
-                :min="obtenerFechaMinima()"
-                :disabled="guardando"
-              >
-
+              <input type="date" v-model="formulario.fecha" :min="obtenerFechaMinima()" :disabled="guardando">
             </div>
-
             <div>
-
               <label>Hora</label>
-
-              <input
-                type="time"
-                v-model="formulario.hora"
-                :min="obtenerHoraMinima()"
-                :max="obtenerHoraMaxima()"
-                :disabled="guardando"
-              >
-
+              <select v-model="formulario.hora" :disabled="guardando || formulario.fecha === ''">
+                <option value="">Seleccione una hora</option>
+                <option v-for="slot in generarSlotsDisponibles()" :key="slot" :value="slot" :disabled="horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id)">{{ slot }} {{ horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id) ? '(ocupado)' : '' }}</option>
+              </select>
             </div>
-
           </div>
-
-          <label>Precio</label>
-
-          <input
-            type="number"
-            v-model="formulario.precio"
-            :disabled="guardando"
-          >
-
-          <p
-            v-if="formulario.precio > 0"
-            class="precio-preview"
-          >
-            Se guardará como:
-            ${{ formatearPrecio(formulario.precio) }} COP
-          </p>
-
-          <label>Método de pago</label>
-
-          <select
-            v-model="formulario.metodoPago"
-            :disabled="guardando"
-          >
-
-            <option value="">
-              Seleccione un método
-            </option>
-
-            <option value="Efectivo">
-              Efectivo
-            </option>
-
-            <option value="Trasferencia">
-              Transferencia
-            </option>
-
-            <option value="Tarjeta">
-              Tarjeta
-            </option>
-
-          </select>
-
-          <label>Estado del pago</label>
-
-          <div class="estado-pago-grupo">
-
-            <button
-              type="button"
-              :disabled="guardando"
-              class="estado-btn"
-              :class="{
-                selected: formulario.estadoPago === 'Pagado',
-                'pagado-sel': formulario.estadoPago === 'Pagado'
-              }"
-              @click="formulario.estadoPago = 'Pagado'"
-            >
-              Pagado
-            </button>
-
-            <button
-              type="button"
-              :disabled="guardando"
-              class="estado-btn"
-              :class="{
-                selected: formulario.estadoPago === 'Pendiente',
-                'pendiente-sel': formulario.estadoPago === 'Pendiente'
-              }"
-              @click="formulario.estadoPago = 'Pendiente'"
-            >
-              Pendiente
-            </button>
-
-            <button
-              type="button"
-              :disabled="guardando"
-              class="estado-btn"
-              :class="{
-                selected: formulario.estadoPago === 'abonado',
-                'abonado-sel': formulario.estadoPago === 'abonado'
-              }"
-              @click="formulario.estadoPago = 'abonado'"
-            >
-              Abonado
-            </button>
-
-          </div>
-
-          <!-- este bloque solo aparece si escogieron "abonado" -->
-
-          <div v-if="formulario.estadoPago === 'abonado'">
-
-            <label>
-              ¿Cuánto abonó?
+          <label>Precio del corte</label>
+          <input type="number" v-model="formulario.precioBase" :disabled="guardando">
+          <label>Adicionales</label>
+          <div class="checkbox-lista">
+            <label v-for="nombre in listaAdicionales" :key="nombre" class="checkbox-item">
+              <input type="checkbox" :checked="formulario.adicionales.includes(nombre)" @change="toggleAdicional(nombre)">
+              {{ nombre }} (+${{ formatearPrecio(preciosAdicionales[nombre]) }})
             </label>
-
-            <input
-              type="number"
-              v-model="formulario.montoAbonado"
-              :disabled="guardando"
-            >
-
           </div>
-
-          <p
-            v-if="mensajeEror"
-            class="msg-error"
-          >
-            ⚠ {{ mensajeEror }}
-          </p>
-
-          <p
-            v-if="guardando"
-            class="msg-guardando"
-          >
-            <span class="spinner"></span>
-            Guardando el servicio, un momento...
-          </p>
-
+          <label>Bebidas y snacks</label>
+          <div class="checkbox-lista">
+            <label v-for="item in menuAlcohol" :key="item.nombre" class="checkbox-item">
+              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
+              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
+            </label>
+            <label v-for="item in menuFrias" :key="item.nombre" class="checkbox-item">
+              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
+              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
+            </label>
+            <label v-for="item in menuCalientes" :key="item.nombre" class="checkbox-item">
+              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
+              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
+            </label>
+            <label v-for="item in menuSnacks" :key="item.nombre" class="checkbox-item">
+              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
+              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
+            </label>
+          </div>
+          <label>Playlist de Spotify (opcional)</label>
+          <input type="text" v-model="formulario.playlist" placeholder="Ej: reggaetón, Bad Bunny, jazz suave...">
+          <p class="precio-preview" style="font-size:1rem;color:var(--gold-soft);font-weight:700">Total a cobrar: ${{ formatearPrecio(calcularTotalFormulario()) }} COP</p>
+          <label>Método de pago</label>
+          <select v-model="formulario.metodoPago" :disabled="guardando">
+            <option value="">Seleccione un método</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Trasferencia">Transferencia</option>
+            <option value="Tarjeta">Tarjeta</option>
+          </select>
+          <label>Estado del pago</label>
+          <div class="estado-pago-grupo">
+            <button type="button" :disabled="guardando" class="estado-btn" :class="{ selected: formulario.estadoPago === 'Pagado', 'pagado-sel': formulario.estadoPago === 'Pagado' }" @click="formulario.estadoPago = 'Pagado'">Pagado</button>
+            <button type="button" :disabled="guardando" class="estado-btn" :class="{ selected: formulario.estadoPago === 'Pendiente', 'pendiente-sel': formulario.estadoPago === 'Pendiente' }" @click="formulario.estadoPago = 'Pendiente'">Pendiente</button>
+            <button type="button" :disabled="guardando" class="estado-btn" :class="{ selected: formulario.estadoPago === 'abonado', 'abonado-sel': formulario.estadoPago === 'abonado' }" @click="formulario.estadoPago = 'abonado'">Abonado</button>
+          </div>
+          <div v-if="formulario.estadoPago === 'abonado'">
+            <label>¿Cuánto abonó?</label>
+            <input type="number" v-model="formulario.montoAbonado" :disabled="guardando">
+          </div>
+          <p v-if="mensajeEror" class="msg-error">⚠ {{ mensajeEror }}</p>
+          <p v-if="guardando" class="msg-guardando"><span class="spinner"></span> Guardando el servicio, un momento...</p>
           <div class="botones-form">
-
-            <button
-              type="submit"
-              class="btn-guardar"
-              :disabled="guardando"
-            >
-              {{ guardando
-                ? 'Guardando...'
-                : 'Guardar Servicio' }}
-            </button>
-
-            <button
-              type="button"
-              class="btn-cancelar"
-              @click="cerrarModal"
-              :disabled="guardando"
-            >
-              Cancelar
-            </button>
-
+            <button type="submit" class="btn-guardar" :disabled="guardando">{{ guardando ? 'Guardando...' : 'Guardar Servicio' }}</button>
+            <button type="button" class="btn-cancelar" @click="cerrarModal" :disabled="guardando">Cancelar</button>
           </div>
-
         </form>
-
       </div>
-
     </div>
-
-    <!-- MODAL: FINALIZAR -->
-
-    <div
-      v-if="mostrarModalFinalizar && obtenerServicioFinalizando()"
-      class="overlay"
-      @click.self="cerrarFinalizar"
-    >
-
+    <div v-if="mostrarModalReserva" class="overlay" @click.self="cerrarModalReserva">
       <div class="modal">
-
-        <button
-          class="modal-close"
-          @click="cerrarFinalizar"
-        >
-          ✕
-        </button>
-
-        <p class="modal-eyebrow">
-          Cierre de ticket
-        </p>
-
-        <h2 class="serif">
-          Finalizar Servicio
-        </h2>
-
-        <p class="desc">
-          Registra cómo quedó el cliente y completa la auditoría de calidad de la atención.
-        </p>
-
-        <div class="ticket-box">
-
-          <div class="ticket-left">
-
-            <div class="cliente-avatar">
-              {{ inicialesCliente(obtenerServicioFinalizando().cliente) }}
-            </div>
-
+        <button class="modal-close" @click="cerrarModalReserva">✕</button>
+        <p class="modal-eyebrow">Reserva a futuro</p>
+        <h2 class="serif">Nueva Reserva</h2>
+        <p class="desc">Aparta el cupo de un cliente para otro día, sin cobrar todavía.</p>
+        <form @submit.prevent="guardarReserva">
+          <label>Nombre del cliente</label>
+          <input type="text" v-model="reservaFormulario.cliente" :disabled="guardandoReserva">
+          <label>Teléfono</label>
+          <input type="tel" v-model="reservaFormulario.telefono" :disabled="guardandoReserva">
+          <label>Tipo de servicio</label>
+          <select v-model="reservaFormulario.tipoServicio" :disabled="guardandoReserva">
+            <option value="">Seleccione un servicio</option>
+            <option v-for="tipo in tiposServicio" :key="tipo" :value="tipo">{{ tipo }}</option>
+          </select>
+          <label>Barbero</label>
+          <select v-model="reservaFormulario.barbero" :disabled="guardandoReserva">
+            <option value="">Seleccione un barbero</option>
+            <option v-for="barbero in barberos" :key="barbero" :value="barbero">{{ barbero }}</option>
+          </select>
+          <div class="fila-doble">
             <div>
-
-              <b>
-                {{ obtenerServicioFinalizando().cliente }}
-              </b>
-
-              <span>
-                {{ obtenerServicioFinalizando().tipoServicio }}
-                · Atendido por
-                {{ obtenerServicioFinalizando().barbero }}
-              </span>
-
+              <label>Fecha</label>
+              <input type="date" v-model="reservaFormulario.fecha" :min="obtenerFechaMinima()" :disabled="guardandoReserva">
             </div>
-
+            <div>
+              <label>Hora</label>
+              <select v-model="reservaFormulario.hora" :disabled="guardandoReserva || reservaFormulario.fecha === ''">
+                <option value="">Seleccione una hora</option>
+                <option v-for="slot in generarSlotsDisponiblesReserva()" :key="slot" :value="slot" :disabled="horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null)">{{ slot }} {{ horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null) ? '(ocupado)' : '' }}</option>
+              </select>
+            </div>
           </div>
-
-          <div class="monto">
-
-            <span>
-              Monto total
-            </span>
-
-            <b>
-              ${{ formatearPrecio(obtenerServicioFinalizando().precio) }}
-            </b>
-
+          <p v-if="mensajeErorReserva" class="msg-error">⚠ {{ mensajeErorReserva }}</p>
+          <p v-if="guardandoReserva" class="msg-guardando"><span class="spinner"></span> Guardando reserva...</p>
+          <div class="botones-form">
+            <button type="submit" class="btn-guardar" :disabled="guardandoReserva">{{ guardandoReserva ? 'Guardando...' : 'Guardar Reserva' }}</button>
+            <button type="button" class="btn-cancelar" @click="cerrarModalReserva" :disabled="guardandoReserva">Cancelar</button>
           </div>
-
+        </form>
+      </div>
+    </div>
+    <div v-if="mostrarModalFinalizar && obtenerServicioFinalizando()" class="overlay" @click.self="cerrarFinalizar">
+      <div class="modal">
+        <button class="modal-close" @click="cerrarFinalizar">✕</button>
+        <p class="modal-eyebrow">Cierre de ticket</p>
+        <h2 class="serif">Finalizar Servicio</h2>
+        <p class="desc">Registra cómo quedó el cliente y completa la auditoría de calidad de la atención.</p>
+        <div class="ticket-box">
+          <div class="ticket-left">
+            <div class="cliente-avatar">{{ inicialesCliente(obtenerServicioFinalizando().cliente) }}</div>
+            <div>
+              <b>{{ obtenerServicioFinalizando().cliente }}</b>
+              <span>{{ obtenerServicioFinalizando().tipoServicio }} · Atendido por {{ obtenerServicioFinalizando().barbero }}</span>
+            </div>
+          </div>
+          <div class="monto"><span>Monto total</span><b>${{ formatearPrecio(obtenerServicioFinalizando().precio) }}</b></div>
         </div>
-
-        <label
-          style="margin-top:0;text-align:center;display:block"
-        >
-          Calificación del cliente
-        </label>
-
+        <label style="margin-top:0;text-align:center;display:block">Calificación del cliente</label>
         <div class="estrellas">
-
-          <button
-            type="button"
-            v-for="estrella in 5"
-            :key="estrella"
-            @click="ponerCalificacion(estrella)"
-          >
-
-            <span
-              :class="{
-                filled: estrella <= calificacionFinal
-              }"
-            >
-              ★
-            </span>
-
+          <button type="button" v-for="estrella in 5" :key="estrella" @click="ponerCalificacion(estrella)">
+            <span :class="{ filled: estrella <= calificacionFinal }">★</span>
           </button>
-
         </div>
-
-        <p class="calif-caption">
-          Pulsa sobre una estrella para calificar
-        </p>
-
-        <label>
-          Observaciones (opcional)
-        </label>
-
-        <textarea
-          v-model="observacionesFinal"
-          :disabled="guardandoFinalizacion"
-          placeholder="Detalles del corte, estilo preferido o notas para su próxima visita..."
-        ></textarea>
-
-        <p
-          v-if="guardandoFinalizacion"
-          class="msg-guardando"
-        >
-          <span class="spinner"></span>
-          Guardando...
-        </p>
-
+        <p class="calif-caption">Pulsa sobre una estrella para calificar</p>
+        <label>Observaciones (opcional)</label>
+        <textarea v-model="observacionesFinal" :disabled="guardandoFinalizacion" placeholder="Detalles del corte, estilo preferido o notas para su próxima visita..."></textarea>
+        <p v-if="guardandoFinalizacion" class="msg-guardando"><span class="spinner"></span> Guardando...</p>
         <div class="botones-form">
-
-          <button
-            type="button"
-            class="btn-guardar"
-            :disabled="guardandoFinalizacion"
-            @click="guardarFinalizacion"
-          >
-            {{ guardandoFinalizacion
-              ? 'Guardando...'
-              : 'Guardar y Finalizar' }}
-          </button>
-
-          <button
-            type="button"
-            class="btn-cancelar"
-            :disabled="guardandoFinalizacion"
-            @click="cerrarFinalizar"
-          >
-            Cancelar
-          </button>
-
+          <button type="button" class="btn-guardar" :disabled="guardandoFinalizacion" @click="guardarFinalizacion">{{ guardandoFinalizacion ? 'Guardando...' : 'Guardar y Finalizar' }}</button>
+          <button type="button" class="btn-cancelar" :disabled="guardandoFinalizacion" @click="cerrarFinalizar">Cancelar</button>
         </div>
-
       </div>
-
     </div>
-
-    <!-- MODAL: CONFIRMAR ELIMINACIÓN -->
-
-    <div
-      v-if="mostrarConfirmacion"
-      class="overlay"
-      @click.self="mostrarConfirmacion = false"
-    >
-
+    <div v-if="mostrarConfirmacion" class="overlay" @click.self="mostrarConfirmacion = false">
       <div class="modal confirm-modal">
-
         <div class="confirm-icon"></div>
-
-        <h2 class="serif">
-          ¿Eliminar servicio?
-        </h2>
-
-        <p class="desc">
-          ¿Estás seguro de eliminar este servicio?
-          Esta acción no se puede deshacer.
-        </p>
-
+        <h2 class="serif">¿Eliminar {{ tipoEliminar === 'reserva' ? 'reserva' : 'servicio' }}?</h2>
+        <p class="desc">¿Estás seguro? Esta acción no se puede deshacer.</p>
         <div class="botones-form">
-
-          <button
-            class="btn-guardar btn-danger"
-            @click="confirmarEliminacion"
-          >
-            Sí, eliminar
-          </button>
-
-          <button
-            class="btn-cancelar"
-            @click="mostrarConfirmacion = false"
-          >
-            Cancelar
-          </button>
-
+          <button class="btn-guardar btn-danger" @click="confirmarEliminacion">Sí, eliminar</button>
+          <button class="btn-cancelar" @click="mostrarConfirmacion = false">Cancelar</button>
         </div>
-
       </div>
-
     </div>
-
   </div>
-
 </template>
+
+
 <style>
+.checkbox-lista { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-height: 160px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
+.checkbox-item input { width: auto; }
+
 @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 body{
   padding: 0;
