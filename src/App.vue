@@ -1,6 +1,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
+import Swal from 'sweetalert2'
+// //limpiar el local
+// localStorage.removeItem('servicios-barberia')
+// localStorage.removeItem('reservas-barberia')
+// location.reload()
 
 const servicios = useLocalStorage('servicios-barberia', [])
 const reservas = useLocalStorage('reservas-barberia', [])
@@ -49,7 +54,6 @@ const descansobarbero = {
   'Mario': [5, 0]
 }
 
-// adicionales que se le pueden sumar al corte, cada uno con su precio
 const preciosAdicionales = {
   'Masaje Facial': 8000,
   'Perfilada De Cejas': 5000,
@@ -61,7 +65,6 @@ const preciosAdicionales = {
 }
 const listaAdicionales = Object.keys(preciosAdicionales)
 
-// menu de bebidas y snacks, separado por categoria para mostrarlo ordenado
 const menuAlcohol = [
   { nombre: 'Cerveza Nacional', precio: 7000 },
   { nombre: 'Cerveza Importada', precio: 12000 },
@@ -151,7 +154,7 @@ const guardandoReserva = ref(false)
 
 const mostrarConfirmacion = ref(false)
 const idEliminar = ref(null)
-const tipoEliminar = ref('servicio') // 'servicio' o 'reserva'
+const tipoEliminar = ref('servicio')
 
 const mensajeEror = ref('')
 const resumenDia = ref(0)
@@ -164,7 +167,47 @@ const observacionesFinal = ref('')
 const guardandoFinalizacion = ref(false)
 const serviciosHechosHoy = ref(0)
 const serviciosReservaHoy = ref(0)
+const serviciosMes = ref(0)
 const filtroBarbero = ref('Todos')
+
+// muestra un toast centrado con el estilo dorado de la barberia
+function alertaExito(mensaje) {
+  Swal.fire({
+    position: "center",
+    icon: "success",
+    title: mensaje,
+    showConfirmButton: false,
+    timer: 1500,
+    customClass: {
+      popup: 'swal-gale-popup',
+      title: 'swal-gale-title'
+    }
+  })
+}
+
+function contarCortesCliente(telefono) {
+  let total = 0
+  for (let i = 0; i < servicios.value.length; i++) {
+    if (servicios.value[i].telefono === telefono && servicios.value[i].finalizado) {
+      total = total + 1
+    }
+  }
+  return total
+}
+
+function obtenerRangoCliente(telefono) {
+  const cortes = contarCortesCliente(telefono)
+  if (cortes >= 20) {
+    return { nombre: 'Symetry Elite', cortes: cortes, puedeAbonar: true, puedePendiente: true, corteGratisDisponible: cortes % 5 === 0 }
+  }
+  if (cortes >= 10) {
+    return { nombre: 'Symetry', cortes: cortes, puedeAbonar: true, puedePendiente: true, corteGratisDisponible: false }
+  }
+  if (cortes >= 5) {
+    return { nombre: 'Frecuente', cortes: cortes, puedeAbonar: true, puedePendiente: false, corteGratisDisponible: false }
+  }
+  return { nombre: 'Nuevo', cortes: cortes, puedeAbonar: false, puedePendiente: false, corteGratisDisponible: false }
+}
 
 function obtenerListaVisible() {
   if (filtroBarbero.value === 'Todos') {
@@ -197,7 +240,6 @@ function calcularSaldoPendiente(servicio) {
   return Number(servicio.precio) - Number(servicio.montoAbonado || 0)
 }
 
-// busca el precio de un consumo (bebida o snack) por su nombre, en las 4 listas juntas
 function precioConsumo(nombre) {
   const todos = menuAlcohol.concat(menuFrias, menuCalientes, menuSnacks)
   const encontrado = todos.find(function (item) {
@@ -206,7 +248,6 @@ function precioConsumo(nombre) {
   return encontrado ? encontrado.precio : 0
 }
 
-// suma precio base + todos los adicionales + todos los consumos marcados
 function calcularTotalFormulario() {
   let total = Number(formulario.value.precioBase || 0)
   for (let i = 0; i < formulario.value.adicionales.length; i++) {
@@ -256,6 +297,11 @@ function barberodescansaesedia(barbero, fechaTexto) {
   return descansobarbero[barbero].includes(diasemana)
 }
 
+function barberoDescansaHoy(barbero, fechaTexto) {
+  if (fechaTexto === '') return false
+  return barberodescansaesedia(barbero, fechaTexto)
+}
+
 function horaaminutos(horaTexto) {
   const partes = horaTexto.split(':')
   return Number(partes[0]) * 60 + Number(partes[1])
@@ -274,7 +320,6 @@ function obtenerbloqueshorario(diasemana) {
   ]
 }
 
-// genera todas las horas posibles cada 30 min dentro del horario de atencion de ese dia
 function generarSlotsDelDia(fechaTexto) {
   if (fechaTexto === '') return []
   const dia = new Date(fechaTexto + 'T00:00:00').getDay()
@@ -293,7 +338,6 @@ function generarSlotsDelDia(fechaTexto) {
   return slots
 }
 
-// revisa si ese barbero ya tiene una cita (servicio o reserva) que se cruza con la hora nueva
 function horaOcupada(barbero, fecha, hora, tipoServicio, idExcluir) {
   if (barbero === '' || fecha === '' || tipoServicio === '') return false
 
@@ -320,7 +364,6 @@ function horaOcupada(barbero, fecha, hora, tipoServicio, idExcluir) {
   return false
 }
 
-// slots disponibles para el select del modal principal, ya filtrando ocupados
 function generarSlotsDisponibles() {
   return generarSlotsDelDia(formulario.value.fecha)
 }
@@ -357,13 +400,37 @@ function validarHorario(barbero, fecha, hora, tipoServicio) {
   return ''
 }
 
+function diasDesdeAbono(fechaServicio) {
+  const fecha = new Date(fechaServicio + 'T00:00:00')
+  const hoy = new Date()
+  const diferenciaMs = hoy - fecha
+  return Math.floor(diferenciaMs / (1000 * 60 * 60 * 24))
+}
+
+function generarLinkRecordatorio(servicio) {
+  const dias = diasDesdeAbono(servicio.fecha)
+  const diasRestantes = 7 - dias
+  const saldo = calcularSaldoPendiente(servicio)
+  const mensaje = 'Hola ' + servicio.cliente + ', te escribimos de SYMETRY BARBER. ' +
+    'Tu corte del ' + servicio.fecha + ' quedó con un saldo pendiente de $' + formatearPrecio(saldo) + ' COP. ' +
+    'Te quedan ' + diasRestantes + ' día(s) para cancelarlo. ¡Gracias por confiar en SYMETRY BARBER!'
+  const telefonoLimpio = servicio.telefono.replace(/\D/g, '')
+  return 'https://wa.me/57' + telefonoLimpio + '?text=' + encodeURIComponent(mensaje)
+}
+
+function generarLinkAgradecimiento(servicio) {
+  const mensaje = 'Gracias ' + servicio.cliente + ' por confiar en SYMETRY BARBER. ¡Te esperamos en tu próxima visita!'
+  const telefonoLimpio = servicio.telefono.replace(/\D/g, '')
+  return 'https://wa.me/57' + telefonoLimpio + '?text=' + encodeURIComponent(mensaje)
+}
+
 function guardarServicio() {
   if (formulario.value.cliente.trim() === "") {
     mensajeEror.value = 'El nombre del cliente es obligatorio'
     return
   }
-  if (formulario.value.telefono.trim() === "") {
-    mensajeEror.value = 'El teléfono del cliente es obligatorio'
+  if (formulario.value.telefono.trim().length !== 10) {
+    mensajeEror.value = 'El teléfono debe tener 10 dígitos'
     return
   }
   if (formulario.value.tipoServicio === '') {
@@ -392,6 +459,17 @@ function guardarServicio() {
   }
   if (esFechaPasada(formulario.value.fecha, formulario.value.hora)) {
     mensajeEror.value = 'No puede reservar en una fecha o hora que ya pasó'
+    return
+  }
+
+  const rango = obtenerRangoCliente(formulario.value.telefono)
+
+  if (formulario.value.estadoPago === 'Pendiente' && !rango.puedePendiente) {
+    mensajeEror.value = 'Este cliente aún no puede quedar pendiente de pago (rango: ' + rango.nombre + ')'
+    return
+  }
+  if (formulario.value.estadoPago === 'abonado' && !rango.puedeAbonar) {
+    mensajeEror.value = 'Este cliente aún no puede abonar (rango: ' + rango.nombre + ')'
     return
   }
 
@@ -447,11 +525,13 @@ function guardarServicio() {
     }
     guardando.value = false
     contarServiciosDelDia()
+    contarServiciosDelMes()
     if (resumenVisible.value) {
       verResumenDia()
     }
     mostrarmodal.value = false
     limpiarFormulario()
+    alertaExito('Servicio guardado correctamente')
   }, 2000)
 }
 
@@ -497,6 +577,7 @@ function confirmarEliminacion() {
       }
     }
     contarServiciosDelDia()
+    contarServiciosDelMes()
     if (resumenVisible.value) {
       verResumenDia()
     }
@@ -508,8 +589,12 @@ function confirmarEliminacion() {
       }
     }
   }
+
+  const tipoEliminado = tipoEliminar.value
   mostrarConfirmacion.value = false
   idEliminar.value = null
+
+  alertaExito(tipoEliminado === 'reserva' ? 'Reserva eliminada' : 'Servicio eliminado')
 }
 
 function abrirFinalizar(servicio) {
@@ -543,11 +628,13 @@ function guardarFinalizacion() {
     }
     guardandoFinalizacion.value = false
     contarServiciosDelDia()
+    contarServiciosDelMes()
     if (resumenVisible.value) {
       verResumenDia()
     }
     mostrarModalFinalizar.value = false
     idFinalizando.value = null
+    alertaExito('Servicio finalizado')
   }, 1500)
 }
 
@@ -582,7 +669,20 @@ function contarServiciosDelDia() {
   serviciosReservaHoy.value = reservados
 }
 
-// --- funciones para el modulo de reservas a futuro ---
+function contarServiciosDelMes() {
+  let total = 0
+  const hoy = new Date()
+  const mesActual = hoy.getMonth()
+  const anioActual = hoy.getFullYear()
+
+  for (let i = 0; i < servicios.value.length; i++) {
+    const fechaServicio = new Date(servicios.value[i].fecha + 'T00:00:00')
+    if (fechaServicio.getMonth() === mesActual && fechaServicio.getFullYear() === anioActual) {
+      total = total + 1
+    }
+  }
+  serviciosMes.value = total
+}
 
 function abrirModalReserva() {
   reservaFormulario.value = reservaVacia()
@@ -600,8 +700,8 @@ function guardarReserva() {
     mensajeErorReserva.value = 'El nombre del cliente es obligatorio'
     return
   }
-  if (reservaFormulario.value.telefono.trim() === "") {
-    mensajeErorReserva.value = 'El teléfono es obligatorio'
+  if (reservaFormulario.value.telefono.trim().length !== 10) {
+    mensajeErorReserva.value = 'El teléfono debe tener 10 dígitos'
     return
   }
   if (reservaFormulario.value.tipoServicio === '') {
@@ -649,10 +749,10 @@ function guardarReserva() {
     reservas.value.push({ ...reservaFormulario.value })
     guardandoReserva.value = false
     mostrarModalReserva.value = false
+    alertaExito('Reserva guardada correctamente')
   }, 1500)
 }
 
-// cuando el cliente llega, la reserva se convierte en un servicio real y se abre para completar el pago
 function clienteLlego(reserva) {
   const nuevoServicio = {
     ...formularioVacio(),
@@ -679,10 +779,15 @@ function clienteLlego(reserva) {
 }
 
 contarServiciosDelDia()
+contarServiciosDelMes()
 </script>
+
+
 
 <template>
   <div class="gale-app">
+
+    <!-- ===== SIDEBAR ===== -->
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">✂</div>
@@ -702,7 +807,11 @@ contarServiciosDelDia()
         <div class="capacidad-bar"><div class="capacidad-fill"></div></div>
       </div>
     </aside>
+
+    <!-- ===== CONTENIDO PRINCIPAL ===== -->
     <main class="main">
+
+      <!-- barra superior -->
       <div class="topbar">
         <div class="pill">📅 Hoy, {{ new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
         <div class="pill mint">⏱ Pico de afluencia: 17:30–19:30</div>
@@ -717,6 +826,8 @@ contarServiciosDelDia()
           </div>
         </div>
       </div>
+
+      <!-- encabezado + botones de accion -->
       <div class="header-row">
         <div>
           <p class="header-eyebrow">CONSOLA DE ADMINISTRACIÓN</p>
@@ -728,6 +839,8 @@ contarServiciosDelDia()
           <button class="btn-nuevo" @click="abrirModalReserva" style="background:transparent;border:1px solid var(--line);color:var(--gold-soft);box-shadow:none">📆 Nueva Reserva</button>
         </div>
       </div>
+
+      <!-- ===== TARJETAS DE ESTADISTICAS ===== -->
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-top">
@@ -758,22 +871,38 @@ contarServiciosDelDia()
           </div>
           <div class="stat-value">{{ reservas.length }}<small>a futuro</small></div>
         </div>
+        <!-- NUEVA: tarjeta de servicios del mes -->
+        <div class="stat-card">
+          <div class="stat-top">
+            <span class="stat-label">Servicios del mes</span>
+            <div class="stat-icon">📊</div>
+          </div>
+          <div class="stat-value">{{ serviciosMes }}<small>acumulados</small></div>
+        </div>
       </div>
+
+      <!-- ===== LISTADO DE SERVICIOS ===== -->
       <div class="section-head">
         <h3 class="serif">Servicios Registrados <span class="count">{{ obtenerListaVisible().length }} de {{ servicios.length }}</span></h3>
         <div class="filtros">
           <button v-for="b in ['Todos', ...barberos]" :key="b" class="filtro-btn" :class="{ active: filtroBarbero === b }" @click="filtroBarbero = b">{{ b }}</button>
         </div>
       </div>
+
       <p class="sin-registros" v-if="obtenerListaVisible().length === 0">Aún no hay servicios registrados para este filtro. ¡Agrega el primero!</p>
+
       <div class="servicios-grid">
         <div v-for="servicio in obtenerListaVisible()" :key="servicio.id" class="tarjeta" :class="{ pendiente: servicio.estadoPago === 'Pendiente', abonado: servicio.estadoPago === 'abonado', pagado: servicio.estadoPago === 'Pagado' }">
+
+          <!-- encabezado de la tarjeta -->
           <div class="tarjeta-header">
             <h4 class="serif">{{ servicio.cliente }}</h4>
             <span class="badge badge-pagado" v-if="servicio.estadoPago === 'Pagado'">Pagado</span>
             <span class="badge badge-pendiente" v-else-if="servicio.estadoPago === 'Pendiente'">Pendiente</span>
             <span class="badge badge-abonado" v-else-if="servicio.estadoPago === 'abonado'">Abonado</span>
           </div>
+
+          <!-- datos basicos del servicio -->
           <div class="tarjeta-row">📞 {{ servicio.telefono }}</div>
           <div class="tarjeta-row">✂ <b>{{ servicio.tipoServicio }}</b> · {{ servicio.barbero }}</div>
           <div class="tarjeta-row">📅 {{ servicio.fecha }} · {{ servicio.hora }}</div>
@@ -781,11 +910,19 @@ contarServiciosDelDia()
           <div class="tarjeta-row" v-if="servicio.adicionales && servicio.adicionales.length > 0">➕ {{ servicio.adicionales.join(', ') }}</div>
           <div class="tarjeta-row" v-if="servicio.consumos && servicio.consumos.length > 0">🍹 {{ servicio.consumos.join(', ') }}</div>
           <div class="tarjeta-row" v-if="servicio.playlist">🎵 {{ servicio.playlist }}</div>
+
           <div class="tarjeta-precio serif">${{ formatearPrecio(servicio.precio) }} <small style="font-size:0.7rem;color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif">COP</small></div>
+
+          <!-- NUEVO: bloque de abono + boton de whatsapp -->
           <div v-if="servicio.estadoPago === 'abonado'" class="info-abono">
             Abonó ${{ formatearPrecio(servicio.montoAbonado) }} COP
             <div class="falta">Falta ${{ formatearPrecio(calcularSaldoPendiente(servicio)) }} COP</div>
+            <a :href="generarLinkRecordatorio(servicio)" target="_blank" class="btn-finalizar" style="display:block;text-align:center;margin-top:6px;text-decoration:none">
+              📱 Enviar recordatorio WhatsApp
+            </a>
           </div>
+
+          <!-- estado del servicio: en curso o finalizado -->
           <div v-if="!servicio.finalizado" class="en-curso">
             <span>Servicio en curso</span>
             <button class="btn-finalizar" @click="abrirFinalizar(servicio)">Finalizar</button>
@@ -795,12 +932,16 @@ contarServiciosDelDia()
             <span v-else class="calificacion-alta">★ {{ servicio.calificacion }}/5</span>
           </div>
           <p v-if="servicio.finalizado && servicio.observaciones" class="observaciones">{{ servicio.observaciones }}</p>
+
+          <!-- botones editar / eliminar -->
           <div class="acciones">
             <button @click="abrirModalEditar(servicio)">✎ Editar</button>
             <button class="eliminar" @click="abrirConfirmacion(servicio.id, 'servicio')">🗑 Eliminar</button>
           </div>
         </div>
       </div>
+
+      <!--  LISTADO DE RESERVAS A FUTURO -->
       <div class="section-head">
         <h3 class="serif">Reservas Agendadas <span class="count">{{ reservas.length }}</span></h3>
       </div>
@@ -819,6 +960,8 @@ contarServiciosDelDia()
           </div>
         </div>
       </div>
+
+      <!-- banner promocional -->
       <div class="promo-banner">
         <div>
           <p class="eyebrow">EXCELENCIA BARBER STUDIO</p>
@@ -832,27 +975,47 @@ contarServiciosDelDia()
         </div>
       </div>
     </main>
+
+    <!--  MODAL: REGISTRAR / EDITAR SERVICIO -->
     <div v-if="mostrarmodal" class="overlay" @click.self="cerrarModal">
       <div class="modal">
         <button class="modal-close" @click="cerrarModal">✕</button>
         <p class="modal-eyebrow">Atención de barbería</p>
         <h2 class="serif">{{ idEditando === null ? 'Registrar Servicio' : 'Editar Servicio' }}</h2>
         <p class="desc">Ingresa los detalles de la atención para control de turnos y facturación.</p>
+
         <form @submit.prevent="guardarServicio">
+
+          <!-- datos del cliente -->
           <label>Nombre del cliente</label>
           <input type="text" v-model="formulario.cliente" :disabled="guardando" placeholder="Ej. Alejandro Restrepo">
+
           <label>Teléfono del cliente</label>
-          <input type="tel" v-model="formulario.telefono" :disabled="guardando" placeholder="Ej: 3001234567">
+          <input type="tel" v-model="formulario.telefono" :disabled="guardando" maxlength="10" placeholder="Ej: 3001234567">
+
+          <!-- NUEVO: rango del cliente segun su historial -->
+          <p v-if="formulario.telefono.length >= 10" class="precio-preview">
+            Rango: <b>{{ obtenerRangoCliente(formulario.telefono).nombre }}</b> ({{ obtenerRangoCliente(formulario.telefono).cortes }} cortes)
+            <span v-if="obtenerRangoCliente(formulario.telefono).corteGratisDisponible"> · 🎁 ¡Corte gratis disponible!</span>
+          </p>
+
+          <!-- tipo de servicio y barbero -->
           <label>Tipo de servicio</label>
           <select v-model="formulario.tipoServicio" @change="actualizarPrecio" :disabled="guardando">
             <option value="">Seleccione un servicio</option>
             <option v-for="tipo in tiposServicio" :key="tipo" :value="tipo">{{ tipo }}</option>
           </select>
+
           <label>Barbero asignado</label>
           <select v-model="formulario.barbero" :disabled="guardando">
             <option value="">Seleccione un barbero</option>
-            <option v-for="barbero in barberos" :key="barbero" :value="barbero">{{ barbero }}</option>
+            <!-- opcion deshabilitada si el barbero descansa ese dia -->
+            <option v-for="barbero in barberos" :key="barbero" :value="barbero" :disabled="barberoDescansaHoy(barbero, formulario.fecha)">
+              {{ barbero }} {{ barberoDescansaHoy(barbero, formulario.fecha) ? '(descansa hoy)' : '' }}
+            </option>
           </select>
+
+          <!-- fecha y hora -->
           <div class="fila-doble">
             <div>
               <label>Fecha</label>
@@ -862,41 +1025,59 @@ contarServiciosDelDia()
               <label>Hora</label>
               <select v-model="formulario.hora" :disabled="guardando || formulario.fecha === ''">
                 <option value="">Seleccione una hora</option>
-                <option v-for="slot in generarSlotsDisponibles()" :key="slot" :value="slot" :disabled="horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id)">{{ slot }} {{ horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id) ? '(ocupado)' : '' }}</option>
+                <!-- opcion deshabilitada si ese barbero ya tiene cita a esa hora -->
+                <option v-for="slot in generarSlotsDisponibles()" :key="slot" :value="slot" :disabled="horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id)">
+                  {{ slot }} {{ horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id) ? '(ocupado)' : '' }}
+                </option>
               </select>
             </div>
           </div>
+
+          <!-- precio base del corte -->
           <label>Precio del corte</label>
-          <input type="number" v-model="formulario.precioBase" :disabled="guardando">
+          <div class="input-precio">
+            <span>$</span>
+            <input type="number" v-model="formulario.precioBase" :disabled="guardando">
+          </div>
+
+          <!-- adicionales del servicio -->
           <label>Adicionales</label>
-          <div class="checkbox-lista">
-            <label v-for="nombre in listaAdicionales" :key="nombre" class="checkbox-item">
-              <input type="checkbox" :checked="formulario.adicionales.includes(nombre)" @change="toggleAdicional(nombre)">
-              {{ nombre }} (+${{ formatearPrecio(preciosAdicionales[nombre]) }})
-            </label>
+          <div class="chips-lista">
+            <button
+            type="button"
+            v-for="nombre in listaAdicionales"
+            :key="nombre"
+            class="chip"
+            :class="{ activo: formulario.adicionales.includes(nombre) }"
+            @click="toggleAdicional(nombre)"
+            >
+            {{ nombre }} <span class="chip-precio">+${{ formatearPrecio(preciosAdicionales[nombre]) }}</span>
+            </button>
           </div>
+
+            <!-- bebidas y snacks -->
           <label>Bebidas y snacks</label>
-          <div class="checkbox-lista">
-            <label v-for="item in menuAlcohol" :key="item.nombre" class="checkbox-item">
-              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
-              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
-            </label>
-            <label v-for="item in menuFrias" :key="item.nombre" class="checkbox-item">
-              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
-              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
-            </label>
-            <label v-for="item in menuCalientes" :key="item.nombre" class="checkbox-item">
-              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
-              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
-            </label>
-            <label v-for="item in menuSnacks" :key="item.nombre" class="checkbox-item">
-              <input type="checkbox" :checked="formulario.consumos.includes(item.nombre)" @change="toggleConsumo(item.nombre)">
-              {{ item.nombre }} (+${{ formatearPrecio(item.precio) }})
-            </label>
+          <div class="chips-lista">
+            <button
+              type="button"
+              v-for="item in menuAlcohol.concat(menuFrias, menuCalientes, menuSnacks)"
+              :key="item.nombre"
+              class="chip"
+              :class="{ activo: formulario.consumos.includes(item.nombre) }"
+              @click="toggleConsumo(item.nombre)"
+              >
+            {{ item.nombre }} <span class="chip-precio">+${{ formatearPrecio(item.precio) }}</span>
+            </button>
           </div>
+
+          <!-- playlist opcional -->
           <label>Playlist de Spotify (opcional)</label>
           <input type="text" v-model="formulario.playlist" placeholder="Ej: reggaetón, Bad Bunny, jazz suave...">
+
+          <!-- total calculado -->
           <p class="precio-preview" style="font-size:1rem;color:var(--gold-soft);font-weight:700">Total a cobrar: ${{ formatearPrecio(calcularTotalFormulario()) }} COP</p>
+
+          <!-- pago -->
           <label>Método de pago</label>
           <select v-model="formulario.metodoPago" :disabled="guardando">
             <option value="">Seleccione un método</option>
@@ -904,18 +1085,23 @@ contarServiciosDelDia()
             <option value="Trasferencia">Transferencia</option>
             <option value="Tarjeta">Tarjeta</option>
           </select>
+
           <label>Estado del pago</label>
           <div class="estado-pago-grupo">
             <button type="button" :disabled="guardando" class="estado-btn" :class="{ selected: formulario.estadoPago === 'Pagado', 'pagado-sel': formulario.estadoPago === 'Pagado' }" @click="formulario.estadoPago = 'Pagado'">Pagado</button>
             <button type="button" :disabled="guardando" class="estado-btn" :class="{ selected: formulario.estadoPago === 'Pendiente', 'pendiente-sel': formulario.estadoPago === 'Pendiente' }" @click="formulario.estadoPago = 'Pendiente'">Pendiente</button>
             <button type="button" :disabled="guardando" class="estado-btn" :class="{ selected: formulario.estadoPago === 'abonado', 'abonado-sel': formulario.estadoPago === 'abonado' }" @click="formulario.estadoPago = 'abonado'">Abonado</button>
           </div>
+
           <div v-if="formulario.estadoPago === 'abonado'">
             <label>¿Cuánto abonó?</label>
             <input type="number" v-model="formulario.montoAbonado" :disabled="guardando">
           </div>
+
+          <!-- mensajes -->
           <p v-if="mensajeEror" class="msg-error">⚠ {{ mensajeEror }}</p>
           <p v-if="guardando" class="msg-guardando"><span class="spinner"></span> Guardando el servicio, un momento...</p>
+
           <div class="botones-form">
             <button type="submit" class="btn-guardar" :disabled="guardando">{{ guardando ? 'Guardando...' : 'Guardar Servicio' }}</button>
             <button type="button" class="btn-cancelar" @click="cerrarModal" :disabled="guardando">Cancelar</button>
@@ -923,6 +1109,8 @@ contarServiciosDelDia()
         </form>
       </div>
     </div>
+
+    <!-- ===== MODAL: NUEVA RESERVA ===== -->
     <div v-if="mostrarModalReserva" class="overlay" @click.self="cerrarModalReserva">
       <div class="modal">
         <button class="modal-close" @click="cerrarModalReserva">✕</button>
@@ -932,18 +1120,24 @@ contarServiciosDelDia()
         <form @submit.prevent="guardarReserva">
           <label>Nombre del cliente</label>
           <input type="text" v-model="reservaFormulario.cliente" :disabled="guardandoReserva">
+
           <label>Teléfono</label>
-          <input type="tel" v-model="reservaFormulario.telefono" :disabled="guardandoReserva">
+          <input type="tel" v-model="reservaFormulario.telefono" :disabled="guardandoReserva" maxlength="10">
+
           <label>Tipo de servicio</label>
           <select v-model="reservaFormulario.tipoServicio" :disabled="guardandoReserva">
             <option value="">Seleccione un servicio</option>
             <option v-for="tipo in tiposServicio" :key="tipo" :value="tipo">{{ tipo }}</option>
           </select>
+
           <label>Barbero</label>
           <select v-model="reservaFormulario.barbero" :disabled="guardandoReserva">
             <option value="">Seleccione un barbero</option>
-            <option v-for="barbero in barberos" :key="barbero" :value="barbero">{{ barbero }}</option>
+            <option v-for="barbero in barberos" :key="barbero" :value="barbero" :disabled="barberoDescansaHoy(barbero, reservaFormulario.fecha)">
+              {{ barbero }} {{ barberoDescansaHoy(barbero, reservaFormulario.fecha) ? '(descansa ese día)' : '' }}
+            </option>
           </select>
+
           <div class="fila-doble">
             <div>
               <label>Fecha</label>
@@ -953,12 +1147,16 @@ contarServiciosDelDia()
               <label>Hora</label>
               <select v-model="reservaFormulario.hora" :disabled="guardandoReserva || reservaFormulario.fecha === ''">
                 <option value="">Seleccione una hora</option>
-                <option v-for="slot in generarSlotsDisponiblesReserva()" :key="slot" :value="slot" :disabled="horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null)">{{ slot }} {{ horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null) ? '(ocupado)' : '' }}</option>
+                <option v-for="slot in generarSlotsDisponiblesReserva()" :key="slot" :value="slot" :disabled="horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null)">
+                  {{ slot }} {{ horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null) ? '(ocupado)' : '' }}
+                </option>
               </select>
             </div>
           </div>
+
           <p v-if="mensajeErorReserva" class="msg-error">⚠ {{ mensajeErorReserva }}</p>
           <p v-if="guardandoReserva" class="msg-guardando"><span class="spinner"></span> Guardando reserva...</p>
+
           <div class="botones-form">
             <button type="submit" class="btn-guardar" :disabled="guardandoReserva">{{ guardandoReserva ? 'Guardando...' : 'Guardar Reserva' }}</button>
             <button type="button" class="btn-cancelar" @click="cerrarModalReserva" :disabled="guardandoReserva">Cancelar</button>
@@ -966,12 +1164,15 @@ contarServiciosDelDia()
         </form>
       </div>
     </div>
+
+    <!-- ===== MODAL: FINALIZAR SERVICIO ===== -->
     <div v-if="mostrarModalFinalizar && obtenerServicioFinalizando()" class="overlay" @click.self="cerrarFinalizar">
       <div class="modal">
         <button class="modal-close" @click="cerrarFinalizar">✕</button>
         <p class="modal-eyebrow">Cierre de ticket</p>
         <h2 class="serif">Finalizar Servicio</h2>
         <p class="desc">Registra cómo quedó el cliente y completa la auditoría de calidad de la atención.</p>
+
         <div class="ticket-box">
           <div class="ticket-left">
             <div class="cliente-avatar">{{ inicialesCliente(obtenerServicioFinalizando().cliente) }}</div>
@@ -982,6 +1183,7 @@ contarServiciosDelDia()
           </div>
           <div class="monto"><span>Monto total</span><b>${{ formatearPrecio(obtenerServicioFinalizando().precio) }}</b></div>
         </div>
+
         <label style="margin-top:0;text-align:center;display:block">Calificación del cliente</label>
         <div class="estrellas">
           <button type="button" v-for="estrella in 5" :key="estrella" @click="ponerCalificacion(estrella)">
@@ -989,18 +1191,23 @@ contarServiciosDelDia()
           </button>
         </div>
         <p class="calif-caption">Pulsa sobre una estrella para calificar</p>
+
         <label>Observaciones (opcional)</label>
         <textarea v-model="observacionesFinal" :disabled="guardandoFinalizacion" placeholder="Detalles del corte, estilo preferido o notas para su próxima visita..."></textarea>
+
         <p v-if="guardandoFinalizacion" class="msg-guardando"><span class="spinner"></span> Guardando...</p>
+
         <div class="botones-form">
           <button type="button" class="btn-guardar" :disabled="guardandoFinalizacion" @click="guardarFinalizacion">{{ guardandoFinalizacion ? 'Guardando...' : 'Guardar y Finalizar' }}</button>
           <button type="button" class="btn-cancelar" :disabled="guardandoFinalizacion" @click="cerrarFinalizar">Cancelar</button>
         </div>
       </div>
     </div>
+
+    <!--  MODAL: CONFIRMAR ELIMINACION (sirve para servicio o reserva)  -->
     <div v-if="mostrarConfirmacion" class="overlay" @click.self="mostrarConfirmacion = false">
       <div class="modal confirm-modal">
-        <div class="confirm-icon"></div>
+        <div class="confirm-icon">X</div>
         <h2 class="serif">¿Eliminar {{ tipoEliminar === 'reserva' ? 'reserva' : 'servicio' }}?</h2>
         <p class="desc">¿Estás seguro? Esta acción no se puede deshacer.</p>
         <div class="botones-form">
@@ -1009,16 +1216,76 @@ contarServiciosDelDia()
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 
 <style>
-.checkbox-lista { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-height: 160px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
-.checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
-.checkbox-item input { width: auto; }
 
 @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+.swal-gale-popup {
+  background: #141317 !important;
+  border: 1px solid #2A2A30 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5) !important;
+}
+.swal-gale-title {
+  font-family: 'Bodoni Moda', serif !important;
+  color: #ECE8DF !important;
+  font-size: 1.3rem !important;
+}
+.swal-gale-popup .swal2-icon.swal2-success {
+  border-color: #D4AF37 !important;
+  color: #D4AF37 !important;
+}
+.swal-gale-popup .swal2-icon.swal2-success [class^='swal2-success-line'] {
+  background-color: #D4AF37 !important;
+}
+.swal-gale-popup .swal2-icon.swal2-success .swal2-success-ring {
+  border-color: rgba(212,175,55,0.3) !important;
+}
+.swal2-container {
+  background: rgba(6,6,8,0.6) !important;
+}
+.chips-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+.chip {
+  background: #0F0F12;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.chip:hover {
+  border-color: var(--gold);
+}
+.chip.activo {
+  background: rgba(212,175,55,0.12);
+  border-color: var(--gold);
+  color: var(--gold-soft);
+  font-weight: 600;
+}
+.chip-precio {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
 body{
   padding: 0;
 }
@@ -1172,6 +1439,8 @@ body{
   background: var(--panel-1); border: 1px solid var(--line); border-radius: 14px;
   padding: 18px; display: flex; flex-direction: column; gap: 8px; border-top: 2px solid var(--line);
 }
+
+
 .tarjeta.pagado { border-top-color: var(--mint); }
 .tarjeta.abonado { border-top-color: var(--gold); }
 .tarjeta.pendiente { border-top-color: var(--coral); }
@@ -1252,6 +1521,27 @@ body{
 .fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .precio-preview { font-size: 0.76rem; color: var(--text-dim); margin: 6px 2px 0; }
 
+
+.input-precio{
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  
+}
+
+.input-precio span{
+  padding-left: 10px;
+  font-weight: bold;
+  color: #555;
+}
+
+.input-precio input {
+  border: none;
+  outline: none;
+  flex: 1;
+  margin-bottom: 5px;
+}
 .estado-pago-grupo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
 .estado-btn { border: 1px solid var(--line); background: var(--panel-1); color: var(--text-dim); padding: 10px 6px; border-radius: 9px; font-size: 0.78rem; cursor: pointer; text-align: center; }
 .estado-btn.pagado-sel { border-color: var(--mint); color: var(--mint); background: rgba(52,211,153,0.08); }
