@@ -169,6 +169,7 @@ const serviciosHechosHoy = ref(0)
 const serviciosReservaHoy = ref(0)
 const serviciosMes = ref(0)
 const filtroBarbero = ref('Todos')
+const busquedaTexto = ref('')
 
 // muestra un toast centrado con el estilo dorado de la barberia
 function alertaExito(mensaje) {
@@ -210,12 +211,19 @@ function obtenerRangoCliente(telefono) {
 }
 
 function obtenerListaVisible() {
-  if (filtroBarbero.value === 'Todos') {
-    return servicios.value
+  let lista = servicios.value
+  if(filtroBarbero.value !== 'Todos') {
+    lista = lista.filter(function (s) {
+      return s.barbero === filtroBarbero.value
+    })
   }
-  return servicios.value.filter(function (s) {
-    return s.barbero === filtroBarbero.value
-  })
+  if (busquedaTexto.value.trim() !== ''){
+    const texto = busquedaTexto.value.toLowerCase()
+    lista = lista.filter(function (s){
+      return s.cliente.toLowerCase().includes(texto) || s.telefono.includes(texto)
+    })
+  }
+  return lista
 }
 
 function obtenerServicioFinalizando() {
@@ -400,13 +408,18 @@ function validarHorario(barbero, fecha, hora, tipoServicio) {
   return ''
 }
 
+const horaYaPaso = (fecha, hora) => {
+  if (!fecha || !hora) return false
+  const ahora = new Date()
+  const fechaHora = new Date(`${fecha}T${hora}`)
+  return fechaHora <= ahora
+}
 function diasDesdeAbono(fechaServicio) {
   const fecha = new Date(fechaServicio + 'T00:00:00')
   const hoy = new Date()
   const diferenciaMs = hoy - fecha
   return Math.floor(diferenciaMs / (1000 * 60 * 60 * 24))
 }
-
 function generarLinkRecordatorio(servicio) {
   const dias = diasDesdeAbono(servicio.fecha)
   const diasRestantes = 7 - dias
@@ -418,8 +431,22 @@ function generarLinkRecordatorio(servicio) {
   return 'https://wa.me/57' + telefonoLimpio + '?text=' + encodeURIComponent(mensaje)
 }
 
-function generarLinkAgradecimiento(servicio) {
-  const mensaje = 'Gracias ' + servicio.cliente + ' por confiar en SYMETRY BARBER. ¡Te esperamos en tu próxima visita!'
+function generarLinkFinalizacion(servicio) {
+  let mensaje = 'Hola ' + servicio.cliente + ' 👋 Somos SYMETRY BARBER. Gracias por confiar en nosotros. 💈✂️\n\n'
+  mensaje += 'Queremos conocer tu experiencia con tu servicio de hoy.\n\n'
+  mensaje += '⭐ ENCUESTA DE SATISFACCIÓN ⭐\n\n'
+  mensaje += 'Por favor responde este mensaje con una calificación del 1 al 5:\n'
+  mensaje += '1 ⭐ Muy malo\n'
+  mensaje += '2 ⭐⭐ Malo\n'
+  mensaje += '3 ⭐⭐⭐ Regular\n'
+  mensaje += '4 ⭐⭐⭐⭐ Bueno\n'
+  mensaje += '5 ⭐⭐⭐⭐⭐ Excelente\n\n'
+  mensaje += 'Y si deseas, cuéntanos brevemente qué te pareció el servicio o qué podemos mejorar. ❤️'
+  if (servicio.estadoPago === 'abonado') {
+    const saldo = calcularSaldoPendiente(servicio)
+    mensaje += '\n\nRecuerda que quedó un saldo pendiente de $' + formatearPrecio(saldo) + ' COP. Tienes 7 días para cancelarlo.'
+  }
+  mensaje += '\n\n¡Te esperamos en tu próxima visita!'
   const telefonoLimpio = servicio.telefono.replace(/\D/g, '')
   return 'https://wa.me/57' + telefonoLimpio + '?text=' + encodeURIComponent(mensaje)
 }
@@ -429,8 +456,8 @@ function guardarServicio() {
     mensajeEror.value = 'El nombre del cliente es obligatorio'
     return
   }
-  if (formulario.value.telefono.trim().length !== 10) {
-    mensajeEror.value = 'El teléfono debe tener 10 dígitos'
+  if (formulario.value.telefono.trim().length !== 11) {
+    mensajeEror.value = 'El teléfono debe tener 11 dígitos'
     return
   }
   if (formulario.value.tipoServicio === '') {
@@ -460,6 +487,13 @@ function guardarServicio() {
   if (esFechaPasada(formulario.value.fecha, formulario.value.hora)) {
     mensajeEror.value = 'No puede reservar en una fecha o hora que ya pasó'
     return
+  }
+  if (idEditando.value !== null) {
+    const servicioExistente = servicios.value.find(s => s.id === idEditando.value)
+    if (servicioExistente && servicioExistente.finalizado) {
+      mensajeEror.value = 'Este servicio ya fue finalizado y no puede editarse'
+      return
+    }
   }
 
   const rango = obtenerRangoCliente(formulario.value.telefono)
@@ -547,6 +581,10 @@ function abrirModalNuevo() {
 }
 
 function abrirModalEditar(servicio) {
+  if (servicio.finalizado) {
+    alertaExito('Este servicio ya está finalizado y no puede editarse')
+    return
+  }
   formulario.value = {
     ...servicio,
     adicionales: servicio.adicionales ? [...servicio.adicionales] : [],
@@ -570,6 +608,13 @@ function abrirConfirmacion(id, tipo) {
 
 function confirmarEliminacion() {
   if (tipoEliminar.value === 'servicio') {
+    const servicio = servicios.value.find(s => s.id === idEliminar.value)
+    if (servicio && servicio.finalizado) {
+      mostrarConfirmacion.value = false
+      idEliminar.value = null
+      alertaExito('Este servicio ya está finalizado y no puede eliminarse')
+      return
+    }
     for (let i = 0; i < servicios.value.length; i++) {
       if (servicios.value[i].id === idEliminar.value) {
         servicios.value.splice(i, 1)
@@ -589,19 +634,34 @@ function confirmarEliminacion() {
       }
     }
   }
-
   const tipoEliminado = tipoEliminar.value
   mostrarConfirmacion.value = false
   idEliminar.value = null
-
   alertaExito(tipoEliminado === 'reserva' ? 'Reserva eliminada' : 'Servicio eliminado')
 }
 
 function abrirFinalizar(servicio) {
+  if (servicio.finalizado) {
+    alertaExito('Este servicio ya está finalizado')
+    return
+  }
   idFinalizando.value = servicio.id
   calificacionFinal.value = servicio.calificacion || 0
   observacionesFinal.value = servicio.observaciones || ''
   mostrarModalFinalizar.value = true
+}
+
+function enviarEncuestaWhatsApp() {
+  const servicio = obtenerServicioFinalizando()
+  if (!servicio) return
+  if (servicio.finalizado) {
+    alertaExito('Este servicio ya está finalizado')
+    return
+  }
+  const link = generarLinkFinalizacion(servicio)
+  window.open(link, '_blank')
+  servicio.encuestaEnviada = true
+  alertaExito('Encuesta enviada por WhatsApp')
 }
 
 function ponerCalificacion(estrella) {
@@ -616,13 +676,14 @@ function cerrarFinalizar() {
 }
 
 function guardarFinalizacion() {
-  guardandoFinalizacion.value = true
+    guardandoFinalizacion.value = true
   setTimeout(() => {
     for (let i = 0; i < servicios.value.length; i++) {
       if (servicios.value[i].id === idFinalizando.value) {
         servicios.value[i].calificacion = calificacionFinal.value
         servicios.value[i].observaciones = observacionesFinal.value
         servicios.value[i].finalizado = true
+        servicios.value[i].encuestaEnviada = true
         break
       }
     }
@@ -634,7 +695,9 @@ function guardarFinalizacion() {
     }
     mostrarModalFinalizar.value = false
     idFinalizando.value = null
-    alertaExito('Servicio finalizado')
+    calificacionFinal.value = 0
+    observacionesFinal.value = ''
+    alertaExito('Servicio finalizado correctamente')
   }, 1500)
 }
 
@@ -816,8 +879,6 @@ contarServiciosDelMes()
         <div class="pill">📅 Hoy, {{ new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
         <div class="pill mint">⏱ Pico de afluencia: 17:30–19:30</div>
         <div class="topbar-spacer"></div>
-        <div class="icon-btn">🔍</div>
-        <div class="icon-btn">🔔</div>
         <div class="profile">
           <div class="profile-avatar">MG</div>
           <div>
@@ -884,6 +945,7 @@ contarServiciosDelMes()
       <!-- ===== LISTADO DE SERVICIOS ===== -->
       <div class="section-head">
         <h3 class="serif">Servicios Registrados <span class="count">{{ obtenerListaVisible().length }} de {{ servicios.length }}</span></h3>
+        <input type="text" v-model="busquedaTexto" placeholder="🔍 Buscar cliente o telefono" class="buscador">
         <div class="filtros">
           <button v-for="b in ['Todos', ...barberos]" :key="b" class="filtro-btn" :class="{ active: filtroBarbero === b }" @click="filtroBarbero = b">{{ b }}</button>
         </div>
@@ -925,16 +987,19 @@ contarServiciosDelMes()
           <!-- estado del servicio: en curso o finalizado -->
           <div v-if="!servicio.finalizado" class="en-curso">
             <span>Servicio en curso</span>
-            <button class="btn-finalizar" @click="abrirFinalizar(servicio)">Finalizar</button>
+              <button class="btn-finalizar" @click="abrirFinalizar(servicio)">Finalizar</button>
           </div>
+
           <div v-else class="resultado-final">
             <span v-if="servicio.calificacion <= 2" class="calificacion-baja">⚠ Calificación baja ({{ servicio.calificacion }}/5)</span>
             <span v-else class="calificacion-alta">★ {{ servicio.calificacion }}/5</span>
           </div>
-          <p v-if="servicio.finalizado && servicio.observaciones" class="observaciones">{{ servicio.observaciones }}</p>
 
-          <!-- botones editar / eliminar -->
-          <div class="acciones">
+          <p v-if="servicio.finalizado && servicio.observaciones" class="observaciones">
+            {{ servicio.observaciones }}
+          </p>
+
+          <div v-if="!servicio.finalizado" class="acciones">
             <button @click="abrirModalEditar(servicio)">✎ Editar</button>
             <button class="eliminar" @click="abrirConfirmacion(servicio.id, 'servicio')">🗑 Eliminar</button>
           </div>
@@ -977,7 +1042,7 @@ contarServiciosDelMes()
     </main>
 
     <!--  MODAL: REGISTRAR / EDITAR SERVICIO -->
-    <div v-if="mostrarmodal" class="overlay" @click.self="cerrarModal">
+    <div v-if="mostrarmodal" class="overlay">
       <div class="modal">
         <button class="modal-close" @click="cerrarModal">✕</button>
         <p class="modal-eyebrow">Atención de barbería</p>
@@ -991,7 +1056,7 @@ contarServiciosDelMes()
           <input type="text" v-model="formulario.cliente" :disabled="guardando" placeholder="Ej. Alejandro Restrepo">
 
           <label>Teléfono del cliente</label>
-          <input type="tel" v-model="formulario.telefono" :disabled="guardando" maxlength="10" placeholder="Ej: 3001234567">
+          <input type="tel" v-model="formulario.telefono" :disabled="guardando" maxlength="11" placeholder="Ej:3001234567">
 
           <!-- NUEVO: rango del cliente segun su historial -->
           <p v-if="formulario.telefono.length >= 10" class="precio-preview">
@@ -1025,9 +1090,9 @@ contarServiciosDelMes()
               <label>Hora</label>
               <select v-model="formulario.hora" :disabled="guardando || formulario.fecha === ''">
                 <option value="">Seleccione una hora</option>
-                <!-- opcion deshabilitada si ese barbero ya tiene cita a esa hora -->
-                <option v-for="slot in generarSlotsDisponibles()" :key="slot" :value="slot" :disabled="horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id)">
-                  {{ slot }} {{ horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id) ? '(ocupado)' : '' }}
+                
+                <option v-for="slot in generarSlotsDisponibles()" :key="slot" :value="slot" :disabled="horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id) || horaYaPaso(formulario.fecha, slot)">
+                  {{ slot }} {{ horaOcupada(formulario.barbero, formulario.fecha, slot, formulario.tipoServicio, formulario.id) ? '(Ocupado)' : horaYaPaso(formulario.fecha,slot ) ? '(Hora Pasada)' : '' }}
                 </option>
               </select>
             </div>
@@ -1111,7 +1176,7 @@ contarServiciosDelMes()
     </div>
 
     <!-- ===== MODAL: NUEVA RESERVA ===== -->
-    <div v-if="mostrarModalReserva" class="overlay" @click.self="cerrarModalReserva">
+    <div v-if="mostrarModalReserva" class="overlay">
       <div class="modal">
         <button class="modal-close" @click="cerrarModalReserva">✕</button>
         <p class="modal-eyebrow">Reserva a futuro</p>
@@ -1147,8 +1212,8 @@ contarServiciosDelMes()
               <label>Hora</label>
               <select v-model="reservaFormulario.hora" :disabled="guardandoReserva || reservaFormulario.fecha === ''">
                 <option value="">Seleccione una hora</option>
-                <option v-for="slot in generarSlotsDisponiblesReserva()" :key="slot" :value="slot" :disabled="horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null)">
-                  {{ slot }} {{ horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null) ? '(ocupado)' : '' }}
+                <option v-for="slot in generarSlotsDisponiblesReserva()" :key="slot" :value="slot" :disabled="horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null) || horaYaPaso(reservaFormulario.fecha, slot)">
+                  {{ slot }} {{ horaOcupada(reservaFormulario.barbero, reservaFormulario.fecha, slot, reservaFormulario.tipoServicio, null) ? '(ocupado)' : horaYaPaso(reservaFormulario.fecha,slot) ? '(Hora Pasada)' : '' }}
                 </option>
               </select>
             </div>
@@ -1166,7 +1231,7 @@ contarServiciosDelMes()
     </div>
 
     <!-- ===== MODAL: FINALIZAR SERVICIO ===== -->
-    <div v-if="mostrarModalFinalizar && obtenerServicioFinalizando()" class="overlay" @click.self="cerrarFinalizar">
+    <div v-if="mostrarModalFinalizar && obtenerServicioFinalizando()" class="overlay">
       <div class="modal">
         <button class="modal-close" @click="cerrarFinalizar">✕</button>
         <p class="modal-eyebrow">Cierre de ticket</p>
@@ -1191,15 +1256,22 @@ contarServiciosDelMes()
           </button>
         </div>
         <p class="calif-caption">Pulsa sobre una estrella para calificar</p>
-
+        <p v-if="obtenerServicioFinalizando().encuestaEnviada" class="encuesta-enviada">Encuesta enviada por WhatsApp</p>
+        
         <label>Observaciones (opcional)</label>
         <textarea v-model="observacionesFinal" :disabled="guardandoFinalizacion" placeholder="Detalles del corte, estilo preferido o notas para su próxima visita..."></textarea>
 
         <p v-if="guardandoFinalizacion" class="msg-guardando"><span class="spinner"></span> Guardando...</p>
 
         <div class="botones-form">
-          <button type="button" class="btn-guardar" :disabled="guardandoFinalizacion" @click="guardarFinalizacion">{{ guardandoFinalizacion ? 'Guardando...' : 'Guardar y Finalizar' }}</button>
-          <button type="button" class="btn-cancelar" :disabled="guardandoFinalizacion" @click="cerrarFinalizar">Cancelar</button>
+          <button type="button" class="btn-guardar" :disabled="guardandoFinalizacion" @click="enviarEncuestaWhatsApp">
+          Enviar encuesta por WhatsApp</button>
+          <button type="button" class="btn-guardar" :disabled="guardandoFinalizacion" @click="guardarFinalizacion">
+          {{ guardandoFinalizacion ? 'Guardando' : 'Guardar y Finalizar' }}
+  </button>
+  <button type="button" class="btn-cancelar" :disabled="guardandoFinalizacion" @click="cerrarFinalizar">
+    Cancelar
+  </button>
         </div>
       </div>
     </div>
@@ -1221,368 +1293,1028 @@ contarServiciosDelMes()
 </template>
 
 
+```css
 <style>
-
 @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-.swal-gale-popup {
-  background: #141317 !important;
-  border: 1px solid #2A2A30 !important;
-  border-radius: 16px !important;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5) !important;
+.swal-gale-popup{
+background:#141317!important;
+border:1px solid #2A2A30!important;
+border-radius:16px!important;
+box-shadow:0 20px 60px rgba(0,0,0,0.5)!important;
 }
-.swal-gale-title {
-  font-family: 'Bodoni Moda', serif !important;
-  color: #ECE8DF !important;
-  font-size: 1.3rem !important;
+.swal-gale-title{
+font-family:'Bodoni Moda',serif!important;
+color:#ECE8DF!important;
+font-size:1.3rem!important;
 }
-.swal-gale-popup .swal2-icon.swal2-success {
-  border-color: #D4AF37 !important;
-  color: #D4AF37 !important;
+.swal-gale-popup .swal2-icon.swal2-success{
+border-color:#D4AF37!important;
+color:#D4AF37!important;
 }
-.swal-gale-popup .swal2-icon.swal2-success [class^='swal2-success-line'] {
-  background-color: #D4AF37 !important;
+.swal-gale-popup .swal2-icon.swal2-success [class^='swal2-success-line']{
+background-color:#D4AF37!important;
 }
-.swal-gale-popup .swal2-icon.swal2-success .swal2-success-ring {
-  border-color: rgba(212,175,55,0.3) !important;
+.swal-gale-popup .swal2-icon.swal2-success .swal2-success-ring{
+border-color:rgba(212,175,55,0.3)!important;
 }
-.swal2-container {
-  background: rgba(6,6,8,0.6) !important;
+.swal2-container{
+background:rgba(6,6,8,0.6)!important;
 }
-.chips-lista {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-  max-height: 220px;
-  overflow-y: auto;
-  padding: 4px 2px;
+
+.chips-lista{
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+margin-top:6px;
+max-height:220px;
+overflow-y:auto;
+padding:4px 2px;
 }
-.chip {
-  background: #0F0F12;
-  border: 1px solid var(--line);
-  color: var(--text-dim);
-  font-size: 0.76rem;
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  transition: all 0.15s;
+.chip{
+background:#0F0F12;
+border:1px solid var(--line);
+color:var(--text-dim);
+font-size:0.82rem;
+padding:8px 12px;
+border-radius:999px;
+cursor:pointer;
+display:flex;
+align-items:center;
+gap:6px;
+white-space:nowrap;
+transition:all 0.15s;
 }
-.chip:hover {
-  border-color: var(--gold);
+.chip:hover{
+border-color:var(--gold);
 }
-.chip.activo {
-  background: rgba(212,175,55,0.12);
-  border-color: var(--gold);
-  color: var(--gold-soft);
-  font-weight: 600;
+.chip.activo{
+background:rgba(212,175,55,0.12);
+border-color:var(--gold);
+color:var(--gold-soft);
+font-weight:600;
 }
-.chip-precio {
-  font-size: 0.68rem;
-  opacity: 0.75;
+.chip-precio{
+font-size:0.72rem;
+opacity:0.75;
 }
 
 body{
-  padding: 0;
-}
-.gale-app {
-  --gold: #D4AF37;
-  --gold-soft: #E9CE86;
-  --bronze: #C59A6F;
-  --mint: #34D399;
-  --coral: #E2725B;
-  --panel-1: #17171B;
-  --panel-2: #1D1D22;
-  --line: #2A2A30;
-  --line-soft: #232328;
-  --text: #ECE8DF;
-  --text-dim: #9C9AA3;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  background: radial-gradient(ellipse at top left, #17151B 0%, #0B0B0D 55%, #08080A 100%);
-  color: var(--text);
-  min-height: 100vh;
-  display: flex;
-  position: relative;
-  
-}
-.gale-app * { box-sizing: border-box; }
-.gale-app .serif { font-family: 'Bodoni Moda', serif; }
-
-.gale-app::before {
-  content: "";
-  position: fixed; inset: 0;
-  background-image: radial-gradient(rgba(212,175,55,0.07) 1px, transparent 1px);
-  background-size: 26px 26px;
-  pointer-events: none;
-  z-index: 0;
+padding:0;
 }
 
-.sidebar {
-  width: 236px;
-  flex-shrink: 0;
-  background: #111114;
-  border-right: 1px solid var(--line);
-  padding: 28px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 26px;
-  position: relative;
-  z-index: 1;
+.gale-app{
+--gold:#D4AF37;
+--gold-soft:#E9CE86;
+--bronze:#C59A6F;
+--mint:#34D399;
+--coral:#E2725B;
+--panel-1:#17171B;
+--panel-2:#1D1D22;
+--line:#2A2A30;
+--line-soft:#232328;
+--text:#ECE8DF;
+--text-dim:#9C9AA3;
+font-family:'Plus Jakarta Sans',sans-serif;
+background:radial-gradient(ellipse at top left,#17151B 0%,#0B0B0D 55%,#08080A 100%);
+color:var(--text);
+min-height:100vh;
+display:flex;
+position:relative;
 }
-.brand { display: flex; align-items: center; gap: 12px; padding: 0 6px; }
-.brand-mark {
-  width: 40px; height: 40px; border-radius: 9px;
-  background: linear-gradient(160deg, #26241C, #171612);
-  border: 1px solid var(--line);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--gold); font-size: 1.1rem;
+.gale-app *{
+box-sizing:border-box;
 }
-.brand h1 { font-size: 1.15rem; letter-spacing: 0.06em; margin: 0; color: var(--gold-soft); font-weight: 600; }
-.brand p { font-size: 0.62rem; letter-spacing: 0.22em; margin: 1px 0 0; color: var(--text-dim); text-transform: uppercase; }
-
-.turno-activo {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 0.72rem; color: var(--mint);
-  background: rgba(52,211,153,0.08);
-  border: 1px solid rgba(52,211,153,0.25);
-  border-radius: 8px; padding: 8px 10px;
+.gale-app .serif{
+font-family:'Bodoni Moda',serif;
 }
-.turno-activo .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 8px var(--mint); }
-.turno-activo .time { margin-left: auto; color: var(--text-dim); }
-
-.nav-list { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
-.nav-item {
-  padding: 10px 12px; border-radius: 9px;
-  font-size: 0.86rem; color: var(--text-dim);
-  border: 1px solid transparent;
-}
-.nav-item.active {
-  background: rgba(212,175,55,0.1);
-  border-color: rgba(212,175,55,0.28);
-  color: var(--gold-soft);
+.gale-app::before{
+content:"";
+position:fixed;
+inset:0;
+background-image:radial-gradient(rgba(212,175,55,0.07) 1px,transparent 1px);
+background-size:26px 26px;
+pointer-events:none;
+z-index:0;
 }
 
-.sidebar-foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 16px; }
-.capacidad-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 6px; }
-.capacidad-bar { height: 6px; border-radius: 4px; background: #232327; overflow: hidden; }
-.capacidad-fill { height: 100%; background: linear-gradient(90deg, var(--bronze), var(--gold)); width: 80%; }
+.sidebar{
+width:236px;
+flex-shrink:0;
+background:#111114;
+border-right:1px solid var(--line);
+padding:28px 18px;
+display:flex;
+flex-direction:column;
+gap:26px;
+position:relative;
+z-index:1;
+}
+.brand{
+display:flex;
+align-items:center;
+gap:12px;
+padding:0 6px;
+}
+.brand-mark{
+width:40px;
+height:40px;
+border-radius:9px;
+background:linear-gradient(160deg,#26241C,#171612);
+border:1px solid var(--line);
+display:flex;
+align-items:center;
+justify-content:center;
+color:var(--gold);
+font-size:1.1rem;
+}
+.brand h1{
+font-size:1.25rem;
+letter-spacing:0.06em;
+margin:0;
+color:var(--gold-soft);
+font-weight:600;
+}
+.brand p{
+font-size:0.68rem;
+letter-spacing:0.22em;
+margin:1px 0 0;
+color:var(--text-dim);
+text-transform:uppercase;
+}
+.turno-activo{
+display:flex;
+align-items:center;
+gap:8px;
+font-size:0.78rem;
+color:var(--mint);
+background:rgba(52,211,153,0.08);
+border:1px solid rgba(52,211,153,0.25);
+border-radius:8px;
+padding:8px 10px;
+}
+.turno-activo .dot{
+width:6px;
+height:6px;
+border-radius:50%;
+background:var(--mint);
+box-shadow:0 0 8px var(--mint);
+}
+.turno-activo .time{
+margin-left:auto;
+color:var(--text-dim);
+}
+.nav-list{
+display:flex;
+flex-direction:column;
+gap:3px;
+margin-top:4px;
+}
+.nav-item{
+padding:10px 12px;
+border-radius:9px;
+font-size:0.92rem;
+color:var(--text-dim);
+border:1px solid transparent;
+}
+.nav-item.active{
+background:rgba(212,175,55,0.1);
+border-color:rgba(212,175,55,0.28);
+color:var(--gold-soft);
+}
+.sidebar-foot{
+margin-top:auto;
+border-top:1px solid var(--line);
+padding-top:16px;
+}
+.capacidad-label{
+display:flex;
+justify-content:space-between;
+font-size:0.78rem;
+color:var(--text-dim);
+margin-bottom:6px;
+}
+.capacidad-bar{
+height:6px;
+border-radius:4px;
+background:#232327;
+overflow:hidden;
+}
+.capacidad-fill{
+height:100%;
+background:linear-gradient(90deg,var(--bronze),var(--gold));
+width:80%;
+}
 
-.main { flex: 1; padding: 26px 34px 60px; position: relative; z-index: 1; min-width: 0; }
+.main{
+flex:1;
+padding:26px 34px 60px;
+position:relative;
+z-index:1;
+min-width:0;
+}
+.topbar{
+display:flex;
+align-items:center;
+gap:14px;
+margin-bottom:26px;
+flex-wrap:wrap;
+}
+.pill{
+display:flex;
+align-items:center;
+gap:8px;
+background:var(--panel-1);
+border:1px solid var(--line);
+padding:8px 14px;
+border-radius:999px;
+font-size:0.82rem;
+color:var(--text-dim);
+}
+.pill.mint{
+color:var(--mint);
+}
+.topbar-spacer{
+flex:1;
+}
+.icon-btn{
+width:38px;
+height:38px;
+border-radius:10px;
+border:1px solid var(--line);
+background:var(--panel-1);
+display:flex;
+align-items:center;
+justify-content:center;
+color:var(--text-dim);
+font-size:0.9rem;
+}
+.profile{
+display:flex;
+align-items:center;
+gap:10px;
+padding-left:8px;
+}
+.profile-avatar{
+width:38px;
+height:38px;
+border-radius:50%;
+background:linear-gradient(145deg,var(--gold-soft),var(--bronze));
+display:flex;
+align-items:center;
+justify-content:center;
+color:#17140C;
+font-weight:700;
+font-size:0.8rem;
+}
+.profile-name{
+font-size:0.86rem;
+font-weight:600;
+color:var(--text);
+line-height:1.1;
+}
+.profile-role{
+font-size:0.72rem;
+color:var(--text-dim);
+}
 
-.topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; flex-wrap: wrap; }
-.pill {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--panel-1); border: 1px solid var(--line);
-  padding: 8px 14px; border-radius: 999px; font-size: 0.78rem; color: var(--text-dim);
+.header-row{
+display:flex;
+align-items:flex-end;
+justify-content:space-between;
+gap:20px;
+margin-bottom:24px;
+flex-wrap:wrap;
 }
-.pill.mint { color: var(--mint); }
-.topbar-spacer { flex: 1; }
-.icon-btn {
-  width: 38px; height: 38px; border-radius: 10px;
-  border: 1px solid var(--line); background: var(--panel-1);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-dim); font-size: 0.9rem;
+.header-eyebrow{
+font-size:0.76rem;
+letter-spacing:0.12em;
+color:var(--gold);
+margin:0 0 8px;
 }
-.profile { display: flex; align-items: center; gap: 10px; padding-left: 8px; }
-.profile-avatar {
-  width: 38px; height: 38px; border-radius: 50%;
-  background: linear-gradient(145deg, var(--gold-soft), var(--bronze));
-  display: flex; align-items: center; justify-content: center;
-  color: #17140C; font-weight: 700; font-size: 0.8rem;
+.header-row h2{
+font-size:2.15rem;
+margin:0;
+font-weight:500;
+line-height:1.1;
 }
-.profile-name { font-size: 0.82rem; font-weight: 600; color: var(--text); line-height: 1.1; }
-.profile-role { font-size: 0.68rem; color: var(--text-dim); }
-
-.header-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
-.header-eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; color: var(--gold); margin: 0 0 8px; }
-.header-row h2 { font-size: 2rem; margin: 0; font-weight: 500; line-height: 1.1; }
-.header-row h2 em { font-style: italic; color: var(--gold-soft); }
-.header-row p.sub { color: var(--text-dim); margin: 10px 0 0; max-width: 46ch; font-size: 0.92rem; }
-.btn-nuevo {
-  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
-  color: #1A1509; border: none; font-weight: 700;
-  padding: 13px 20px; border-radius: 11px; font-size: 0.88rem;
-  cursor: pointer; box-shadow: 0 8px 22px -8px rgba(212,175,55,0.55);
-  white-space: nowrap;
+.header-row h2 em{
+font-style:italic;
+color:var(--gold-soft);
 }
-.btn-nuevo:hover { filter: brightness(1.05); }
-
-.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
-.stat-card { background: linear-gradient(165deg, var(--panel-2), var(--panel-1)); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
-.stat-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.stat-icon {
-  width: 34px; height: 34px; border-radius: 9px; background: rgba(212,175,55,0.1);
-  border: 1px solid rgba(212,175,55,0.22); display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+.header-row p.sub{
+color:var(--text-dim);
+margin:10px 0 0;
+max-width:46ch;
+font-size:0.96rem;
 }
-.stat-label { font-size: 0.76rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
-.stat-value { font-size: 2.1rem; font-weight: 600; font-family: 'Bodoni Moda', serif; }
-.stat-value small { font-size: 1rem; color: var(--text-dim); font-family: 'Plus Jakarta Sans', sans-serif; margin-left: 6px; }
-.stat-money { font-size: 1.7rem; font-weight: 600; font-family: 'Bodoni Moda', serif; color: var(--mint); }
-.stat-btn { margin-top: 10px; background: none; border: 1px solid var(--line); color: var(--text-dim); font-size: 0.76rem; padding: 7px 12px; border-radius: 8px; cursor: pointer; }
-.stat-btn:hover { border-color: var(--gold); color: var(--gold-soft); }
-
-.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
-.section-head h3 { font-family: 'Bodoni Moda', serif; font-size: 1.3rem; font-weight: 500; margin: 0; }
-.section-head .count { color: var(--text-dim); font-weight: 400; font-size: 0.9rem; font-family: 'Plus Jakarta Sans', sans-serif; margin-left: 8px; }
-.filtros { display: flex; gap: 6px; flex-wrap: wrap; }
-.filtro-btn { border: 1px solid var(--line); background: var(--panel-1); color: var(--text-dim); font-size: 0.76rem; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-.filtro-btn.active { border-color: var(--gold); color: var(--gold-soft); background: rgba(212,175,55,0.08); }
-
-.sin-registros { border: 1px dashed var(--line); border-radius: 14px; padding: 40px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
-
-.servicios-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; margin-bottom: 30px; }
-.tarjeta {
-  background: var(--panel-1); border: 1px solid var(--line); border-radius: 14px;
-  padding: 18px; display: flex; flex-direction: column; gap: 8px; border-top: 2px solid var(--line);
+.btn-nuevo{
+background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+color:#1A1509;
+border:none;
+font-weight:700;
+padding:13px 20px;
+border-radius:11px;
+font-size:0.94rem;
+cursor:pointer;
+box-shadow:0 8px 22px -8px rgba(212,175,55,0.55);
+white-space:nowrap;
+}
+.btn-nuevo:hover{
+filter:brightness(1.05);
 }
 
+.stats-row{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:16px;
+margin-bottom:30px;
+}
+.stat-card{
+background:linear-gradient(165deg,var(--panel-2),var(--panel-1));
+border:1px solid var(--line);
+border-radius:14px;
+padding:20px;
+}
+.stat-top{
+display:flex;
+align-items:center;
+justify-content:space-between;
+margin-bottom:14px;
+}
+.stat-icon{
+width:34px;
+height:34px;
+border-radius:9px;
+background:rgba(212,175,55,0.1);
+border:1px solid rgba(212,175,55,0.22);
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:0.9rem;
+}
+.stat-label{
+font-size:0.82rem;
+color:var(--text-dim);
+text-transform:uppercase;
+letter-spacing:0.06em;
+}
+.stat-value{
+font-size:2.25rem;
+font-weight:600;
+font-family:'Bodoni Moda',serif;
+}
+.stat-value small{
+font-size:1rem;
+color:var(--text-dim);
+font-family:'Plus Jakarta Sans',sans-serif;
+margin-left:6px;
+}
+.stat-money{
+font-size:1.85rem;
+font-weight:600;
+font-family:'Bodoni Moda',serif;
+color:var(--mint);
+}
+.stat-btn{
+margin-top:10px;
+background: #d4af3758;
+border:1px solid var(--line);
+color:var(--text-dim);
+font-size:  15px;
+padding:7px 12px;
+border-radius:8px;
+cursor:pointer;
+}
+.stat-btn:hover{
+border-color:var(--gold);
+color:var(--gold-soft);
+}
 
-.tarjeta.pagado { border-top-color: var(--mint); }
-.tarjeta.abonado { border-top-color: var(--gold); }
-.tarjeta.pendiente { border-top-color: var(--coral); }
-.tarjeta-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-.tarjeta-header h4 { font-family: 'Bodoni Moda', serif; font-size: 1.15rem; font-weight: 500; margin: 0; }
-.badge { font-size: 0.68rem; padding: 4px 9px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
-.badge-pagado { background: rgba(52,211,153,0.12); color: var(--mint); border: 1px solid rgba(52,211,153,0.3); }
-.badge-pendiente { background: rgba(226,114,91,0.12); color: #EF9784; border: 1px solid rgba(226,114,91,0.32); }
-.badge-abonado { background: rgba(212,175,55,0.12); color: var(--gold-soft); border: 1px solid rgba(212,175,55,0.32); }
-.tarjeta-row { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--text-dim); }
-.tarjeta-row b { color: var(--text); font-weight: 500; }
-.tarjeta-precio { font-family: 'Bodoni Moda', serif; font-size: 1.25rem; margin-top: 2px; }
-.info-abono { background: rgba(212,175,55,0.07); border: 1px solid rgba(212,175,55,0.2); border-radius: 9px; padding: 8px 11px; font-size: 0.78rem; margin-top: 2px; }
-.info-abono .falta { color: #EF9784; font-weight: 600; margin-top: 2px; }
-.en-curso {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  background: rgba(255,255,255,0.03); border: 1px solid var(--line-soft);
-  border-radius: 10px; padding: 9px 12px; margin-top: 4px;
+.section-head{
+display:flex;
+align-items:center;
+justify-content:space-between;
+margin-bottom:16px;
+flex-wrap:wrap;
+gap:10px;
 }
-.en-curso span { font-size: 0.78rem; color: var(--text-dim); }
-.btn-finalizar {
-  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
-  color: #1A1509; border: none; font-weight: 700; font-size: 0.76rem;
-  padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+.section-head h3{
+font-family:'Bodoni Moda',serif;
+font-size:50px;
+font-weight:500;
+margin:0;
 }
-.resultado-final { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
-.calificacion-alta { color: var(--gold-soft); font-size: 0.85rem; font-weight: 600; }
-.calificacion-baja { color: #EF9784; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 5px; }
-.observaciones { font-size: 0.78rem; color: var(--text-dim); font-style: italic; margin-top: 2px; border-left: 2px solid var(--line); padding-left: 8px; }
-.acciones { display: flex; gap: 8px; margin-top: 8px; }
-.acciones button {
-  flex: 1; background: transparent; border: 1px solid var(--line); color: var(--text-dim);
-  font-size: 0.78rem; padding: 8px; border-radius: 8px; cursor: pointer;
+.section-head .count{
+color:var(--text-dim);
+font-weight:400;
+font-size:0.94rem;
+font-family:'Plus Jakarta Sans',sans-serif;
+margin-left:8px;
 }
-.acciones button:hover { border-color: var(--gold); color: var(--gold-soft); }
-.acciones button.eliminar:hover { border-color: #E2725B; color: #EF9784; }
+.filtros{
+display:flex;
+gap:6px;
+flex-wrap:wrap;
+}
+.filtro-btn{
+border:1px solid var(--line);
+background:var(--panel-1);
+color:var(--text-dim);
+font-size:0.82rem;
+padding:6px 12px;
+border-radius:8px;
+cursor:pointer;
+}
+.filtro-btn.active{
+border-color:var(--gold);
+color:var(--gold-soft);
+background:rgba(212,175,55,0.08);
+}
+.sin-registros{
+border:1px dashed var(--line);
+border-radius:14px;
+padding:40px;
+text-align:center;
+color:var(--text-dim);
+font-size:0.94rem;
+}
 
-.promo-banner {
-  border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
-  background: linear-gradient(120deg, #1B1A16 0%, #141316 60%);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 30px 34px; gap: 20px; flex-wrap: wrap;
+.servicios-grid{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
+gap:16px;
+margin-bottom:30px;
 }
-.promo-banner .eyebrow { color: var(--gold); font-size: 0.72rem; letter-spacing: 0.14em; margin: 0 0 8px; }
-.promo-banner h3 { font-family: 'Bodoni Moda', serif; font-size: 1.7rem; font-weight: 500; margin: 0 0 8px; max-width: 20ch; }
-.promo-banner p { color: var(--text-dim); font-size: 0.86rem; max-width: 40ch; margin: 0; }
-.promo-stats { display: flex; gap: 26px; }
-.promo-stats div { text-align: center; }
-.promo-stats b { font-family: 'Bodoni Moda', serif; font-size: 1.35rem; display: block; color: var(--gold-soft); }
-.promo-stats span { font-size: 0.7rem; color: var(--text-dim); }
+.tarjeta{
+background:var(--panel-1);
+border:1px solid var(--line);
+border-radius:14px;
+padding:18px;
+display:flex;
+flex-direction:column;
+gap:8px;
+border-top:2px solid var(--line);
+}
+.buscador{
+background:var(--panel-1);
+border:1px solid var(--line);
+color:var(--text);
+padding:13px 14px;
+border-radius:999px;
+font-size:15px;
+min-width:220px;
+}
+.buscador:focus{
+outline:none;
+border-color:var(--gold);
+}
+.tarjeta.pagado{
+border-top-color:var(--mint);
+}
+.tarjeta.abonado{
+border-top-color:var(--gold);
+}
+.tarjeta.pendiente{
+border-top-color:var(--coral);
+}
+.tarjeta-header{
+display:flex;
+align-items:center;
+justify-content:space-between;
+margin-bottom:2px;
+}
+.tarjeta-header h4{
+font-family:'Bodoni Moda',serif;
+font-size:2.28rem;
+font-weight:500;
+margin:0;
+}
+.badge{
+font-size:0.72rem;
+padding:4px 9px;
+border-radius:999px;
+font-weight:600;
+white-space:nowrap;
+}
+.badge-pagado{
+background:rgba(52,211,153,0.12);
+color:var(--mint);
+border:1px solid rgba(52,211,153,0.3);
+}
+.badge-pendiente{
+background:rgba(226,114,91,0.12);
+color:#EF9784;
+border:1px solid rgba(226,114,91,0.32);
+}
+.badge-abonado{
+background:rgba(212,175,55,0.12);
+color:var(--gold-soft);
+border:1px solid rgba(212,175,55,0.32);
+}
+.tarjeta-row{
+display:flex;
+align-items:center;
+gap:7px;
+font-size:16px;
+color:var(--text-dim);
+}
+.tarjeta-row b{
+color:var(--text);
+font-weight:500;
+}
+.tarjeta-precio{
+font-family:'Bodoni Moda',serif;
+font-size:1.4rem;
+margin-top:2px;
+}
+.info-abono{
+background:rgba(212,175,55,0.07);
+border:1px solid rgba(212,175,55,0.2);
+border-radius:9px;
+padding:8px 11px;
+font-size:0.82rem;
+margin-top:2px;
+}
+.info-abono .falta{
+color:#EF9784;
+font-weight:600;
+margin-top:2px;
+}
+.en-curso{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
+background:rgba(255,255,255,0.03);
+border:1px solid var(--line-soft);
+border-radius:10px;
+padding:9px 12px;
+margin-top:4px;
+}
+.en-curso span{
+font-size:0.82rem;
+color:var(--text-dim);
+}
+.btn-finalizar{
+background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+color:#1A1509;
+border:none;
+font-weight:700;
+font-size:0.82rem;
+padding:8px 12px;
+border-radius:8px;
+cursor:pointer;
+white-space:nowrap;
+}
+.resultado-final{
+display:flex;
+align-items:center;
+justify-content:space-between;
+margin-top:4px;
+}
+.calificacion-alta{
+color:var(--gold-soft);
+font-size:0.9rem;
+font-weight:600;
+}
+.calificacion-baja{
+color:#EF9784;
+font-size:0.84rem;
+font-weight:600;
+display:flex;
+align-items:center;
+gap:5px;
+}
+.observaciones{
+font-size:0.82rem;
+color:var(--text-dim);
+font-style:italic;
+margin-top:2px;
+border-left:2px solid var(--line);
+padding-left:8px;
+}
+.acciones{
+display:flex;
+gap:8px;
+margin-top:8px;
+}
+.acciones button{
+flex:1;
+background:transparent;
+border:1px solid var(--line);
+color:var(--text-dim);
+font-size:0.82rem;
+padding:8px;
+border-radius:8px;
+cursor:pointer;
+}
+.acciones button:hover{
+border-color:var(--gold);
+color:var(--gold-soft);
+}
+.acciones button.eliminar:hover{
+border-color:#E2725B;
+color:#EF9784;
+}
 
-/* modals */
-.overlay {
-  position: fixed; inset: 0; background: rgba(6,6,8,0.72); backdrop-filter: blur(3px);
-  display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 50;
+.promo-banner{
+border:1px solid var(--line);
+border-radius:16px;
+overflow:hidden;
+background:linear-gradient(120deg,#1B1A16 0%,#141316 60%);
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:30px 34px;
+gap:20px;
+flex-wrap:wrap;
 }
-.modal {
-  background: #141317; border: 1px solid var(--line); border-radius: 18px;
-  width: 100%; max-width: 480px; padding: 28px; max-height: 88vh; overflow-y: auto; position: relative;
+.promo-banner .eyebrow{
+color:var(--gold);
+font-size:0.76rem;
+letter-spacing:0.14em;
+margin:0 0 8px;
 }
-.modal-close {
-  position: absolute; top: 20px; right: 20px; width: 30px; height: 30px;
-  border-radius: 8px; border: 1px solid var(--line); background: var(--panel-1);
-  color: var(--text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer;
+.promo-banner h3{
+font-family:'Bodoni Moda',serif;
+font-size:1.8rem;
+font-weight:500;
+margin:0 0 8px;
+max-width:20ch;
 }
-.modal-eyebrow { font-size: 0.68rem; letter-spacing: 0.14em; color: var(--gold); margin: 0 0 6px; text-transform: uppercase; }
-.modal h2 { font-family: 'Bodoni Moda', serif; font-weight: 500; font-size: 1.5rem; margin: 0 0 6px; }
-.modal > .desc { color: var(--text-dim); font-size: 0.85rem; margin: 0 0 20px; }
+.promo-banner p{
+color:var(--text-dim);
+font-size:0.9rem;
+max-width:40ch;
+margin:0;
+}
+.promo-stats{
+display:flex;
+gap:26px;
+}
+.promo-stats div{
+text-align:center;
+}
+.promo-stats b{
+font-family:'Bodoni Moda',serif;
+font-size:1.45rem;
+display:block;
+color:var(--gold-soft);
+}
+.promo-stats span{
+font-size:0.74rem;
+color:var(--text-dim);
+}
 
-.modal label { display: block; font-size: 0.78rem; color: var(--text-dim); margin: 14px 0 6px; }
-.modal input, .modal select, .modal textarea {
-  width: 100%; background: #0F0F12; border: 1px solid var(--line); color: var(--text);
-  padding: 11px 13px; border-radius: 9px; font-size: 0.88rem; font-family: inherit;
+/* MODALES */
+.overlay{
+position:fixed;
+inset:0;
+background:rgba(6,6,8,0.72);
+backdrop-filter:blur(3px);
+display:flex;
+align-items:center;
+justify-content:center;
+padding:24px;
+z-index:50;
 }
-.modal input:focus, .modal select:focus, .modal textarea:focus { outline: none; border-color: var(--gold); }
-.modal input:disabled, .modal select:disabled, .modal textarea:disabled { opacity: 0.55; }
-.modal textarea { min-height: 80px; resize: vertical; }
-.fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.precio-preview { font-size: 0.76rem; color: var(--text-dim); margin: 6px 2px 0; }
-
+.modal{
+background:#141317;
+border:1px solid var(--line);
+border-radius:18px;
+width:100%;
+max-width:480px;
+padding:28px;
+max-height:88vh;
+overflow-y:auto;
+position:relative;
+}
+.modal-close{
+position:absolute;
+top:20px;
+right:20px;
+width:30px;
+height:30px;
+border-radius:8px;
+border:1px solid var(--line);
+background:var(--panel-1);
+color:var(--text-dim);
+display:flex;
+align-items:center;
+justify-content:center;
+cursor:pointer;
+}
+.modal-eyebrow{
+font-size:0.72rem;
+letter-spacing:0.14em;
+color:var(--gold);
+margin:0 0 6px;
+text-transform:uppercase;
+}
+.modal h2{
+font-family:'Bodoni Moda',serif;
+font-weight:500;
+font-size:1.65rem;
+margin:0 0 6px;
+}
+.modal > .desc{
+color:var(--text-dim);
+font-size:0.9rem;
+margin:0 0 20px;
+}
+.modal label{
+display:block;
+font-size:0.82rem;
+color:var(--text-dim);
+margin:14px 0 6px;
+}
+.modal input,
+.modal select,
+.modal textarea{
+width:100%;
+background:#0F0F12;
+border:1px solid var(--line);
+color:var(--text);
+padding:11px 13px;
+border-radius:9px;
+font-size:0.92rem;
+font-family:inherit;
+}
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus{
+outline:none;
+border-color:var(--gold);
+}
+.modal input:disabled,
+.modal select:disabled,
+.modal textarea:disabled{
+opacity:0.55;
+}
+.modal textarea{
+min-height:80px;
+resize:vertical;
+}
+.fila-doble{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px;
+}
+.precio-preview{
+font-size:0.8rem;
+color:var(--text-dim);
+margin:6px 2px 0;
+}
 
 .input-precio{
-  display: flex;
-  align-items: center;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  
+display:flex;
+align-items:center;
+border:1px solid #ccc;
+border-radius:6px;
 }
-
 .input-precio span{
-  padding-left: 10px;
-  font-weight: bold;
-  color: #555;
+padding-left:10px;
+font-weight:bold;
+color:#555;
+}
+.input-precio input{
+border:none;
+outline:none;
+flex:1;
+margin-bottom:5px;
 }
 
-.input-precio input {
-  border: none;
-  outline: none;
-  flex: 1;
-  margin-bottom: 5px;
+.estado-pago-grupo{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:8px;
+margin-top:6px;
 }
-.estado-pago-grupo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
-.estado-btn { border: 1px solid var(--line); background: var(--panel-1); color: var(--text-dim); padding: 10px 6px; border-radius: 9px; font-size: 0.78rem; cursor: pointer; text-align: center; }
-.estado-btn.pagado-sel { border-color: var(--mint); color: var(--mint); background: rgba(52,211,153,0.08); }
-.estado-btn.pendiente-sel { border-color: #E2725B; color: #EF9784; background: rgba(226,114,91,0.08); }
-.estado-btn.abonado-sel { border-color: var(--gold); color: var(--gold-soft); background: rgba(212,175,55,0.08); }
+.estado-btn{
+border:1px solid var(--line);
+background:var(--panel-1);
+color:var(--text-dim);
+padding:10px 6px;
+border-radius:9px;
+font-size:0.82rem;
+cursor:pointer;
+text-align:center;
+}
+.estado-btn.pagado-sel{
+border-color:var(--mint);
+color:var(--mint);
+background:rgba(52,211,153,0.08);
+}
+.estado-btn.pendiente-sel{
+border-color:#E2725B;
+color:#EF9784;
+background:rgba(226,114,91,0.08);
+}
+.estado-btn.abonado-sel{
+border-color:var(--gold);
+color:var(--gold-soft);
+background:rgba(212,175,55,0.08);
+}
 
-.msg-error { display: flex; align-items: center; gap: 7px; background: rgba(226,114,91,0.1); border: 1px solid rgba(226,114,91,0.3); color: #EF9784; padding: 10px 12px; border-radius: 9px; font-size: 0.8rem; margin-top: 16px; }
-.msg-guardando { color: var(--gold-soft); font-size: 0.8rem; margin-top: 12px; display: flex; align-items: center; gap: 8px; }
-.spinner { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(212,175,55,0.25); border-top-color: var(--gold); animation: spin 0.7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.msg-error{
+display:flex;
+align-items:center;
+gap:7px;
+background:rgba(226,114,91,0.1);
+border:1px solid rgba(226,114,91,0.3);
+color:#EF9784;
+padding:10px 12px;
+border-radius:9px;
+font-size:0.84rem;
+margin-top:16px;
+}
+.msg-guardando{
+color:var(--gold-soft);
+font-size:0.84rem;
+margin-top:12px;
+display:flex;
+align-items:center;
+gap:8px;
+}
+.spinner{
+width:13px;
+height:13px;
+border-radius:50%;
+border:2px solid rgba(212,175,55,0.25);
+border-top-color:var(--gold);
+animation:spin 0.7s linear infinite;
+}
+@keyframes spin{
+to{
+transform:rotate(360deg);
+}
+}
 
-.botones-form { display: flex; gap: 10px; margin-top: 22px; }
-.btn-guardar { flex: 1; background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: #1A1509; border: none; font-weight: 700; padding: 12px; border-radius: 10px; font-size: 0.86rem; cursor: pointer; }
-.btn-guardar.btn-danger { background: linear-gradient(180deg, #EF9784, #E2725B); }
-.btn-guardar:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-cancelar { flex: 1; background: transparent; border: 1px solid var(--line); color: var(--text-dim); font-weight: 600; padding: 12px; border-radius: 10px; font-size: 0.86rem; cursor: pointer; }
-.btn-cancelar:disabled { opacity: 0.5; }
+.botones-form{
+display:flex;
+gap:10px;
+margin-top:22px;
+}
+.btn-guardar{
+flex:1;
+background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+color:#1A1509;
+border:none;
+font-weight:700;
+padding:12px;
+border-radius:10px;
+font-size:0.9rem;
+cursor:pointer;
+}
+.btn-guardar.btn-danger{
+background:linear-gradient(180deg,#EF9784,#E2725B);
+}
+.btn-guardar:disabled{
+opacity:0.6;
+cursor:not-allowed;
+}
+.btn-cancelar{
+flex:1;
+background:transparent;
+border:1px solid var(--line);
+color:var(--text-dim);
+font-weight:600;
+padding:12px;
+border-radius:10px;
+font-size:0.9rem;
+cursor:pointer;
+}
+.btn-cancelar:disabled{
+opacity:0.5;
+}
 
-.ticket-box { background: #0F0F12; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-.ticket-left { display: flex; align-items: center; }
-.ticket-box .cliente-avatar { width: 34px; height: 34px; border-radius: 9px; background: rgba(212,175,55,0.12); color: var(--gold-soft); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; margin-right: 10px; }
-.ticket-left div b { font-size: 0.92rem; display: block; }
-.ticket-left div span { font-size: 0.74rem; color: var(--text-dim); }
-.ticket-box .monto { text-align: right; }
-.ticket-box .monto span { display: block; font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-.ticket-box .monto b { font-family: 'Bodoni Moda', serif; font-size: 1.2rem; color: var(--gold-soft); }
+.ticket-box{
+background:#0F0F12;
+border:1px solid var(--line);
+border-radius:12px;
+padding:14px 16px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+margin-bottom:18px;
+}
+.ticket-left{
+display:flex;
+align-items:center;
+}
+.ticket-box .cliente-avatar{
+width:34px;
+height:34px;
+border-radius:9px;
+background:rgba(212,175,55,0.12);
+color:var(--gold-soft);
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:700;
+font-size:0.82rem;
+margin-right:10px;
+}
+.ticket-left div b{
+font-size:0.96rem;
+display:block;
+}
+.ticket-left div span{
+font-size:0.78rem;
+color:var(--text-dim);
+}
+.ticket-box .monto{
+text-align:right;
+}
+.ticket-box .monto span{
+display:block;
+font-size:0.7rem;
+color:var(--text-dim);
+text-transform:uppercase;
+letter-spacing:0.05em;
+}
+.ticket-box .monto b{
+font-family:'Bodoni Moda',serif;
+font-size:1.3rem;
+color:var(--gold-soft);
+}
 
-.estrellas { display: flex; gap: 8px; justify-content: center; padding: 14px 0 6px; }
-.estrellas button { background: none; border: none; cursor: pointer; padding: 2px; font-size: 1.8rem; line-height: 1; color: #3B3A40; }
-.estrellas button span.filled { color: var(--gold); }
-.estrellas button:hover { transform: scale(1.08); }
-.calif-caption { text-align: center; font-size: 0.76rem; color: var(--text-dim); margin-bottom: 4px; }
+.estrellas{
+display:flex;
+gap:8px;
+justify-content:center;
+padding:14px 0 6px;
+}
+.estrellas button{
+background:none;
+border:none;
+cursor:pointer;
+padding:2px;
+font-size:1.8rem;
+line-height:1;
+color:#3B3A40;
+}
+.estrellas button span.filled{
+color:var(--gold);
+}
+.estrellas button:hover{
+transform:scale(1.08);
+}
+.calif-caption{
+text-align:center;
+font-size:0.8rem;
+color:var(--text-dim);
+margin-bottom:4px;
+}
+.encuesta-enviada{
+text-align:center;
+color:var(--mint);
+font-size:0.82rem;
+margin:8px 0;
+}
 
-.confirm-modal { max-width: 380px; }
-.confirm-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(226,114,91,0.12); border: 1px solid rgba(226,114,91,0.3); display: flex; align-items: center; justify-content: center; color: #EF9784; margin-bottom: 14px; font-size: 1.2rem; }
+.confirm-modal{
+max-width:380px;
+}
+.confirm-icon{
+width:44px;
+height:44px;
+border-radius:12px;
+background:rgba(226,114,91,0.12);
+border:1px solid rgba(226,114,91,0.3);
+display:flex;
+align-items:center;
+justify-content:center;
+color:#EF9784;
+margin-bottom:14px;
+font-size:1.2rem;
+}
 
-@media (max-width: 900px) {
-  .sidebar { display: none; }
-  .main { padding: 20px 16px 50px; }
-  .stats-row { grid-template-columns: 1fr; }
-  .fila-doble, .estado-pago-grupo { grid-template-columns: 1fr; }
-  .promo-banner { flex-direction: column; align-items: flex-start; }
+.modal input[type="date"]::-webkit-calendar-picker-indicator,
+.modal input[type="time"]::-webkit-calendar-picker-indicator{
+filter:invert(1);
+cursor:pointer;
+}
+
+@media (max-width:900px){
+.sidebar{
+display:none;
+}
+.main{
+padding:20px 16px 50px;
+}
+.stats-row{
+grid-template-columns:1fr;
+}
+.fila-doble,
+.estado-pago-grupo{
+grid-template-columns:1fr;
+}
+.promo-banner{
+flex-direction:column;
+align-items:flex-start;
+}
 }
 </style>
+```
