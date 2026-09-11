@@ -2,10 +2,6 @@
 import { ref } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import Swal from 'sweetalert2'
-// //limpiar el local
-// localStorage.removeItem('servicios-barberia')
-// localStorage.removeItem('reservas-barberia')
-// location.reload()
 
 const servicios = useLocalStorage('servicios-barberia', [])
 const reservas = useLocalStorage('reservas-barberia', [])
@@ -63,6 +59,7 @@ const preciosAdicionales = {
   'Diseño De Barba': 10000,
   'Retoque De Barba': 6000
 }
+
 const listaAdicionales = Object.keys(preciosAdicionales)
 
 const menuAlcohol = [
@@ -78,6 +75,7 @@ const menuAlcohol = [
   { nombre: 'Gin-Tonic', precio: 27000 },
   { nombre: 'Copa De Vino Tinto', precio: 18000 }
 ]
+
 const menuFrias = [
   { nombre: 'Gaseosa', precio: 5000 },
   { nombre: 'Agua Mineral', precio: 3500 },
@@ -88,6 +86,7 @@ const menuFrias = [
   { nombre: 'Granizado Sin Alcohol', precio: 10000 },
   { nombre: 'Jugo Embotellado', precio: 5000 }
 ]
+
 const menuCalientes = [
   { nombre: 'Café Espresso', precio: 4000 },
   { nombre: 'Café Americano', precio: 5000 },
@@ -99,6 +98,7 @@ const menuCalientes = [
   { nombre: 'Té Verde', precio: 5000 },
   { nombre: 'Infusión De Frutas', precio: 5000 }
 ]
+
 const menuSnacks = [
   { nombre: 'Mix De Frutos Secos', precio: 4500 },
   { nombre: 'Papas O Snack De Paquete', precio: 4500 },
@@ -145,17 +145,14 @@ function reservaVacia() {
 
 const formulario = ref(formularioVacio())
 const reservaFormulario = ref(reservaVacia())
-
 const mostrarmodal = ref(false)
 const idEditando = ref(null)
 const mostrarModalReserva = ref(false)
 const mensajeErorReserva = ref('')
 const guardandoReserva = ref(false)
-
 const mostrarConfirmacion = ref(false)
 const idEliminar = ref(null)
 const tipoEliminar = ref('servicio')
-
 const mensajeEror = ref('')
 const resumenDia = ref(0)
 const resumenVisible = ref(false)
@@ -171,11 +168,10 @@ const serviciosMes = ref(0)
 const filtroBarbero = ref('Todos')
 const busquedaTexto = ref('')
 
-// muestra un toast centrado con el estilo dorado de la barberia
 function alertaExito(mensaje) {
   Swal.fire({
-    position: "center",
-    icon: "success",
+    position: 'center',
+    icon: 'success',
     title: mensaje,
     showConfirmButton: false,
     timer: 1500,
@@ -186,10 +182,15 @@ function alertaExito(mensaje) {
   })
 }
 
+function limpiarTelefono(telefono) {
+  return String(telefono || '').replace(/\D/g, '')
+}
+
 function contarCortesCliente(telefono) {
+  telefono = limpiarTelefono(telefono)
   let total = 0
   for (let i = 0; i < servicios.value.length; i++) {
-    if (servicios.value[i].telefono === telefono && servicios.value[i].finalizado) {
+    if (limpiarTelefono(servicios.value[i].telefono) === telefono && servicios.value[i].finalizado) {
       total = total + 1
     }
   }
@@ -197,32 +198,60 @@ function contarCortesCliente(telefono) {
 }
 
 function obtenerRangoCliente(telefono) {
+  telefono = limpiarTelefono(telefono)
   const cortes = contarCortesCliente(telefono)
   if (cortes >= 20) {
-    return { nombre: 'Symetry Elite', cortes: cortes, puedeAbonar: true, puedePendiente: true, corteGratisDisponible: cortes % 5 === 0 }
+    return {
+      nombre: 'Symetry Elite',
+      cortes: cortes,
+      puedeAbonar: true,
+      puedePendiente: true,
+      corteGratisDisponible: cortes % 5 === 0
+    }
   }
   if (cortes >= 10) {
-    return { nombre: 'Symetry', cortes: cortes, puedeAbonar: true, puedePendiente: true, corteGratisDisponible: false }
+    return {
+      nombre: 'Symetry',
+      cortes: cortes,
+      puedeAbonar: true,
+      puedePendiente: true,
+      corteGratisDisponible: false
+    }
   }
   if (cortes >= 5) {
-    return { nombre: 'Frecuente', cortes: cortes, puedeAbonar: true, puedePendiente: false, corteGratisDisponible: false }
+    return {
+      nombre: 'Frecuente',
+      cortes: cortes,
+      puedeAbonar: true,
+      puedePendiente: false,
+      corteGratisDisponible: false
+    }
   }
-  return { nombre: 'Nuevo', cortes: cortes, puedeAbonar: false, puedePendiente: false, corteGratisDisponible: false }
+  return {
+    nombre: 'Nuevo',
+    cortes: cortes,
+    puedeAbonar: false,
+    puedePendiente: false,
+    corteGratisDisponible: false
+  }
 }
 
 function obtenerListaVisible() {
   let lista = servicios.value
-  if(filtroBarbero.value !== 'Todos') {
+
+  if (filtroBarbero.value !== 'Todos') {
     lista = lista.filter(function (s) {
       return s.barbero === filtroBarbero.value
     })
   }
-  if (busquedaTexto.value.trim() !== ''){
+
+  if (busquedaTexto.value.trim() !== '') {
     const texto = busquedaTexto.value.toLowerCase()
-    lista = lista.filter(function (s){
-      return s.cliente.toLowerCase().includes(texto) || s.telefono.includes(texto)
+    lista = lista.filter(function (s) {
+      return s.cliente.toLowerCase().includes(texto) || limpiarTelefono(s.telefono).includes(limpiarTelefono(texto))
     })
   }
+
   return lista
 }
 
@@ -258,12 +287,15 @@ function precioConsumo(nombre) {
 
 function calcularTotalFormulario() {
   let total = Number(formulario.value.precioBase || 0)
+
   for (let i = 0; i < formulario.value.adicionales.length; i++) {
     total += preciosAdicionales[formulario.value.adicionales[i]] || 0
   }
+
   for (let i = 0; i < formulario.value.consumos.length; i++) {
     total += precioConsumo(formulario.value.consumos[i])
   }
+
   return total
 }
 
@@ -319,9 +351,11 @@ function obtenerbloqueshorario(diasemana) {
   if (diasemana === 0) {
     return [{ inicio: '09:00', fin: '12:30' }]
   }
+
   if (diasemana === 6) {
     return [{ inicio: '09:00', fin: '16:00' }]
   }
+
   return [
     { inicio: '08:30', fin: '12:30' },
     { inicio: '14:00', fin: '18:00' }
@@ -330,12 +364,15 @@ function obtenerbloqueshorario(diasemana) {
 
 function generarSlotsDelDia(fechaTexto) {
   if (fechaTexto === '') return []
+
   const dia = new Date(fechaTexto + 'T00:00:00').getDay()
   const bloques = obtenerbloqueshorario(dia)
   const slots = []
+
   for (let b = 0; b < bloques.length; b++) {
     let actual = horaaminutos(bloques[b].inicio)
     const fin = horaaminutos(bloques[b].fin)
+
     while (actual < fin) {
       const horas = String(Math.floor(actual / 60)).padStart(2, '0')
       const minutos = String(actual % 60).padStart(2, '0')
@@ -343,6 +380,7 @@ function generarSlotsDelDia(fechaTexto) {
       actual += 30
     }
   }
+
   return slots
 }
 
@@ -352,11 +390,11 @@ function horaOcupada(barbero, fecha, hora, tipoServicio, idExcluir) {
   const duracionNueva = duracionServicio[tipoServicio] || 60
   const inicioNuevo = horaaminutos(hora)
   const finNuevo = inicioNuevo + duracionNueva
-
   const todasLasCitas = servicios.value.concat(reservas.value)
 
   for (let i = 0; i < todasLasCitas.length; i++) {
     const cita = todasLasCitas[i]
+
     if (cita.id === idExcluir) continue
     if (cita.barbero !== barbero) continue
     if (cita.fecha !== fecha) continue
@@ -369,6 +407,7 @@ function horaOcupada(barbero, fecha, hora, tipoServicio, idExcluir) {
       return true
     }
   }
+
   return false
 }
 
@@ -390,11 +429,12 @@ function validarHorario(barbero, fecha, hora, tipoServicio) {
   const duracion = duracionServicio[tipoServicio]
   const inicioMinutos = horaaminutos(hora)
   const finMinutos = inicioMinutos + duracion
-
   let cabeEnAlgunBloque = false
+
   for (let i = 0; i < bloques.length; i++) {
     const inicioBloque = horaaminutos(bloques[i].inicio)
     const finBloque = horaaminutos(bloques[i].fin)
+
     if (inicioMinutos >= inicioBloque && finMinutos <= finBloque) {
       cabeEnAlgunBloque = true
       break
@@ -410,29 +450,38 @@ function validarHorario(barbero, fecha, hora, tipoServicio) {
 
 const horaYaPaso = (fecha, hora) => {
   if (!fecha || !hora) return false
+
   const ahora = new Date()
   const fechaHora = new Date(`${fecha}T${hora}`)
+
   return fechaHora <= ahora
 }
+
 function diasDesdeAbono(fechaServicio) {
   const fecha = new Date(fechaServicio + 'T00:00:00')
   const hoy = new Date()
   const diferenciaMs = hoy - fecha
   return Math.floor(diferenciaMs / (1000 * 60 * 60 * 24))
 }
+
 function generarLinkRecordatorio(servicio) {
   const dias = diasDesdeAbono(servicio.fecha)
   const diasRestantes = 7 - dias
   const saldo = calcularSaldoPendiente(servicio)
+
   const mensaje = 'Hola ' + servicio.cliente + ', te escribimos de SYMETRY BARBER. ' +
-    'Tu corte del ' + servicio.fecha + ' quedó con un saldo pendiente de $' + formatearPrecio(saldo) + ' COP. ' +
-    'Te quedan ' + diasRestantes + ' día(s) para cancelarlo. ¡Gracias por confiar en SYMETRY BARBER!'
-  const telefonoLimpio = servicio.telefono.replace(/\D/g, '')
+    'Tu corte del ' + servicio.fecha + ' quedó con un saldo pendiente de $' +
+    formatearPrecio(saldo) + ' COP. Te quedan ' + diasRestantes +
+    ' día(s) para cancelarlo. ¡Gracias por confiar en SYMETRY BARBER!'
+
+  const telefonoLimpio = limpiarTelefono(servicio.telefono)
+
   return 'https://wa.me/57' + telefonoLimpio + '?text=' + encodeURIComponent(mensaje)
 }
 
 function generarLinkFinalizacion(servicio) {
   let mensaje = 'Hola ' + servicio.cliente + ' 👋 Somos SYMETRY BARBER. Gracias por confiar en nosotros. 💈✂️\n\n'
+
   mensaje += 'Queremos conocer tu experiencia con tu servicio de hoy.\n\n'
   mensaje += '⭐ ENCUESTA DE SATISFACCIÓN ⭐\n\n'
   mensaje += 'Por favor responde este mensaje con una calificación del 1 al 5:\n'
@@ -442,54 +491,70 @@ function generarLinkFinalizacion(servicio) {
   mensaje += '4 ⭐⭐⭐⭐ Bueno\n'
   mensaje += '5 ⭐⭐⭐⭐⭐ Excelente\n\n'
   mensaje += 'Y si deseas, cuéntanos brevemente qué te pareció el servicio o qué podemos mejorar. ❤️'
+
   if (servicio.estadoPago === 'abonado') {
     const saldo = calcularSaldoPendiente(servicio)
     mensaje += '\n\nRecuerda que quedó un saldo pendiente de $' + formatearPrecio(saldo) + ' COP. Tienes 7 días para cancelarlo.'
   }
+
   mensaje += '\n\n¡Te esperamos en tu próxima visita!'
-  const telefonoLimpio = servicio.telefono.replace(/\D/g, '')
+
+  const telefonoLimpio = limpiarTelefono(servicio.telefono)
+
   return 'https://wa.me/57' + telefonoLimpio + '?text=' + encodeURIComponent(mensaje)
 }
 
 function guardarServicio() {
-  if (formulario.value.cliente.trim() === "") {
+  formulario.value.telefono = limpiarTelefono(formulario.value.telefono)
+
+  if (formulario.value.cliente.trim() === '') {
     mensajeEror.value = 'El nombre del cliente es obligatorio'
     return
   }
-  if (formulario.value.telefono.trim().length !== 11) {
-    mensajeEror.value = 'El teléfono debe tener 11 dígitos'
+
+  if (formulario.value.telefono.length !== 10) {
+    mensajeEror.value = 'El teléfono debe tener 10 dígitos'
     return
   }
+
   if (formulario.value.tipoServicio === '') {
     mensajeEror.value = 'Seleccione un tipo de servicio'
     return
   }
+
   if (formulario.value.barbero === '') {
     mensajeEror.value = 'Seleccione un barbero'
     return
   }
+
   if (formulario.value.fecha === '') {
     mensajeEror.value = 'Seleccione una fecha'
     return
   }
+
   if (formulario.value.hora === '') {
     mensajeEror.value = 'Seleccione una hora'
     return
   }
+
   if (formulario.value.metodoPago === '') {
     mensajeEror.value = 'Seleccione un método de pago'
     return
   }
+
   if (formulario.value.estadoPago === '') {
     mensajeEror.value = 'Seleccione un estado de pago'
     return
   }
+
   if (esFechaPasada(formulario.value.fecha, formulario.value.hora)) {
     mensajeEror.value = 'No puede reservar en una fecha o hora que ya pasó'
     return
   }
+
   if (idEditando.value !== null) {
     const servicioExistente = servicios.value.find(s => s.id === idEditando.value)
+
     if (servicioExistente && servicioExistente.finalizado) {
       mensajeEror.value = 'Este servicio ya fue finalizado y no puede editarse'
       return
@@ -502,6 +567,7 @@ function guardarServicio() {
     mensajeEror.value = 'Este cliente aún no puede quedar pendiente de pago (rango: ' + rango.nombre + ')'
     return
   }
+
   if (formulario.value.estadoPago === 'abonado' && !rango.puedeAbonar) {
     mensajeEror.value = 'Este cliente aún no puede abonar (rango: ' + rango.nombre + ')'
     return
@@ -514,6 +580,7 @@ function guardarServicio() {
       mensajeEror.value = 'Debe indicar cuánto abonó el cliente'
       return
     }
+
     if (formulario.value.montoAbonado >= total) {
       mensajeEror.value = 'El abono no puede ser igual o mayor al total'
       return
@@ -526,12 +593,19 @@ function guardarServicio() {
     formulario.value.hora,
     formulario.value.tipoServicio
   )
+
   if (errorHorario !== '') {
     mensajeEror.value = errorHorario
     return
   }
 
-  if (horaOcupada(formulario.value.barbero, formulario.value.fecha, formulario.value.hora, formulario.value.tipoServicio, formulario.value.id)) {
+  if (horaOcupada(
+    formulario.value.barbero,
+    formulario.value.fecha,
+    formulario.value.hora,
+    formulario.value.tipoServicio,
+    formulario.value.id
+  )) {
     mensajeEror.value = 'Ese barbero ya tiene una cita a esa hora'
     return
   }
@@ -543,6 +617,7 @@ function guardarServicio() {
     if (formulario.value.estadoPago !== 'abonado') {
       formulario.value.montoAbonado = 0
     }
+
     formulario.value.precio = calcularTotalFormulario()
 
     if (idEditando.value === null) {
@@ -557,12 +632,15 @@ function guardarServicio() {
         }
       }
     }
+
     guardando.value = false
     contarServiciosDelDia()
     contarServiciosDelMes()
+
     if (resumenVisible.value) {
       verResumenDia()
     }
+
     mostrarmodal.value = false
     limpiarFormulario()
     alertaExito('Servicio guardado correctamente')
@@ -585,11 +663,14 @@ function abrirModalEditar(servicio) {
     alertaExito('Este servicio ya está finalizado y no puede editarse')
     return
   }
+
   formulario.value = {
     ...servicio,
+    telefono: limpiarTelefono(servicio.telefono),
     adicionales: servicio.adicionales ? [...servicio.adicionales] : [],
     consumos: servicio.consumos ? [...servicio.consumos] : []
   }
+
   idEditando.value = servicio.id
   mostrarmodal.value = true
 }
@@ -609,20 +690,24 @@ function abrirConfirmacion(id, tipo) {
 function confirmarEliminacion() {
   if (tipoEliminar.value === 'servicio') {
     const servicio = servicios.value.find(s => s.id === idEliminar.value)
+
     if (servicio && servicio.finalizado) {
       mostrarConfirmacion.value = false
       idEliminar.value = null
       alertaExito('Este servicio ya está finalizado y no puede eliminarse')
       return
     }
+
     for (let i = 0; i < servicios.value.length; i++) {
       if (servicios.value[i].id === idEliminar.value) {
         servicios.value.splice(i, 1)
         break
       }
     }
+
     contarServiciosDelDia()
     contarServiciosDelMes()
+
     if (resumenVisible.value) {
       verResumenDia()
     }
@@ -634,9 +719,12 @@ function confirmarEliminacion() {
       }
     }
   }
+
   const tipoEliminado = tipoEliminar.value
+
   mostrarConfirmacion.value = false
   idEliminar.value = null
+
   alertaExito(tipoEliminado === 'reserva' ? 'Reserva eliminada' : 'Servicio eliminado')
 }
 
@@ -645,6 +733,7 @@ function abrirFinalizar(servicio) {
     alertaExito('Este servicio ya está finalizado')
     return
   }
+
   idFinalizando.value = servicio.id
   calificacionFinal.value = servicio.calificacion || 0
   observacionesFinal.value = servicio.observaciones || ''
@@ -653,14 +742,20 @@ function abrirFinalizar(servicio) {
 
 function enviarEncuestaWhatsApp() {
   const servicio = obtenerServicioFinalizando()
+
   if (!servicio) return
+
   if (servicio.finalizado) {
     alertaExito('Este servicio ya está finalizado')
     return
   }
+
   const link = generarLinkFinalizacion(servicio)
+
   window.open(link, '_blank')
+
   servicio.encuestaEnviada = true
+
   alertaExito('Encuesta enviada por WhatsApp')
 }
 
@@ -671,12 +766,14 @@ function ponerCalificacion(estrella) {
 
 function cerrarFinalizar() {
   if (guardandoFinalizacion.value) return
+
   mostrarModalFinalizar.value = false
   idFinalizando.value = null
 }
 
 function guardarFinalizacion() {
-    guardandoFinalizacion.value = true
+  guardandoFinalizacion.value = true
+
   setTimeout(() => {
     for (let i = 0; i < servicios.value.length; i++) {
       if (servicios.value[i].id === idFinalizando.value) {
@@ -687,16 +784,20 @@ function guardarFinalizacion() {
         break
       }
     }
+
     guardandoFinalizacion.value = false
     contarServiciosDelDia()
     contarServiciosDelMes()
+
     if (resumenVisible.value) {
       verResumenDia()
     }
+
     mostrarModalFinalizar.value = false
     idFinalizando.value = null
     calificacionFinal.value = 0
     observacionesFinal.value = ''
+
     alertaExito('Servicio finalizado correctamente')
   }, 1500)
 }
@@ -704,11 +805,13 @@ function guardarFinalizacion() {
 function verResumenDia() {
   let total = 0
   const hoy = new Date().toISOString().split('T')[0]
+
   for (let i = 0; i < servicios.value.length; i++) {
     if (servicios.value[i].fecha === hoy) {
       total += Number(servicios.value[i].precio)
     }
   }
+
   resumenDia.value = total
   resumenVisible.value = true
 }
@@ -740,10 +843,15 @@ function contarServiciosDelMes() {
 
   for (let i = 0; i < servicios.value.length; i++) {
     const fechaServicio = new Date(servicios.value[i].fecha + 'T00:00:00')
-    if (fechaServicio.getMonth() === mesActual && fechaServicio.getFullYear() === anioActual) {
+
+    if (
+      fechaServicio.getMonth() === mesActual &&
+      fechaServicio.getFullYear() === anioActual
+    ) {
       total = total + 1
     }
   }
+
   serviciosMes.value = total
 }
 
@@ -759,30 +867,38 @@ function cerrarModalReserva() {
 }
 
 function guardarReserva() {
-  if (reservaFormulario.value.cliente.trim() === "") {
+  reservaFormulario.value.telefono = limpiarTelefono(reservaFormulario.value.telefono)
+
+  if (reservaFormulario.value.cliente.trim() === '') {
     mensajeErorReserva.value = 'El nombre del cliente es obligatorio'
     return
   }
-  if (reservaFormulario.value.telefono.trim().length !== 10) {
+
+  if (reservaFormulario.value.telefono.length !== 10) {
     mensajeErorReserva.value = 'El teléfono debe tener 10 dígitos'
     return
   }
+
   if (reservaFormulario.value.tipoServicio === '') {
     mensajeErorReserva.value = 'Seleccione un tipo de servicio'
     return
   }
+
   if (reservaFormulario.value.barbero === '') {
     mensajeErorReserva.value = 'Seleccione un barbero'
     return
   }
+
   if (reservaFormulario.value.fecha === '') {
     mensajeErorReserva.value = 'Seleccione una fecha'
     return
   }
+
   if (reservaFormulario.value.hora === '') {
     mensajeErorReserva.value = 'Seleccione una hora'
     return
   }
+
   if (esFechaPasada(reservaFormulario.value.fecha, reservaFormulario.value.hora)) {
     mensajeErorReserva.value = 'No puede reservar en una fecha u hora que ya pasó'
     return
@@ -794,12 +910,21 @@ function guardarReserva() {
     reservaFormulario.value.hora,
     reservaFormulario.value.tipoServicio
   )
+
   if (errorHorario !== '') {
     mensajeErorReserva.value = errorHorario
     return
   }
 
-  if (horaOcupada(reservaFormulario.value.barbero, reservaFormulario.value.fecha, reservaFormulario.value.hora, reservaFormulario.value.tipoServicio, null)) {
+  if (
+    horaOcupada(
+      reservaFormulario.value.barbero,
+      reservaFormulario.value.fecha,
+      reservaFormulario.value.hora,
+      reservaFormulario.value.tipoServicio,
+      null
+    )
+  ) {
     mensajeErorReserva.value = 'Ese barbero ya tiene una cita a esa hora'
     return
   }
@@ -810,8 +935,10 @@ function guardarReserva() {
   setTimeout(() => {
     reservaFormulario.value.id = Date.now()
     reservas.value.push({ ...reservaFormulario.value })
+
     guardandoReserva.value = false
     mostrarModalReserva.value = false
+
     alertaExito('Reserva guardada correctamente')
   }, 1500)
 }
@@ -821,13 +948,14 @@ function clienteLlego(reserva) {
     ...formularioVacio(),
     id: Date.now(),
     cliente: reserva.cliente,
-    telefono: reserva.telefono,
+    telefono: limpiarTelefono(reserva.telefono),
     tipoServicio: reserva.tipoServicio,
     barbero: reserva.barbero,
     fecha: reserva.fecha,
     hora: reserva.hora,
     precioBase: preciosServicio[reserva.tipoServicio] || 0
   }
+
   servicios.value.push(nuevoServicio)
 
   for (let i = 0; i < reservas.value.length; i++) {
@@ -846,7 +974,6 @@ contarServiciosDelMes()
 </script>
 
 
-
 <template>
   <div class="gale-app">
 
@@ -855,8 +982,8 @@ contarServiciosDelMes()
       <div class="brand">
         <div class="brand-mark">✂</div>
         <div>
-          <h1 class="serif">GALÉ</h1>
-          <p>Barber Studio</p>
+          <h1 class="serif">SYMETRY</h1>
+          <p>Barber</p>
         </div>
       </div>
       <div class="turno-activo">
@@ -866,8 +993,8 @@ contarServiciosDelMes()
         <div class="nav-item active">▦ Panel de Servicios</div>
       </nav>
       <div class="sidebar-foot">
-        <div class="capacidad-label"><span>Sillones ocupados</span><span>4/5</span></div>
-        <div class="capacidad-bar"><div class="capacidad-fill"></div></div>
+        <div class="capacidad-label"><span>SYMETRY BARBER</span><span></span></div>
+        
       </div>
     </aside>
 
@@ -945,7 +1072,7 @@ contarServiciosDelMes()
       <!-- ===== LISTADO DE SERVICIOS ===== -->
       <div class="section-head">
         <h3 class="serif">Servicios Registrados <span class="count">{{ obtenerListaVisible().length }} de {{ servicios.length }}</span></h3>
-        <input type="text" v-model="busquedaTexto" placeholder="🔍 Buscar cliente o telefono" class="buscador">
+        <input type="text" v-model="busquedaTexto" placeholder="Buscar cliente o telefono" class="buscador">
         <div class="filtros">
           <button v-for="b in ['Todos', ...barberos]" :key="b" class="filtro-btn" :class="{ active: filtroBarbero === b }" @click="filtroBarbero = b">{{ b }}</button>
         </div>
@@ -1053,10 +1180,10 @@ contarServiciosDelMes()
 
           <!-- datos del cliente -->
           <label>Nombre del cliente</label>
-          <input type="text" v-model="formulario.cliente" :disabled="guardando" placeholder="Ej. Alejandro Restrepo">
+          <input type="text" v-model="formulario.cliente" :disabled="guardando" placeholder="Ej. Alejandro Restrepo" @input="formulario.telefono = formulario.telefono.replace(/\D/g, '')">
 
           <label>Teléfono del cliente</label>
-          <input type="tel" v-model="formulario.telefono" :disabled="guardando" maxlength="11" placeholder="Ej:3001234567">
+          <input type="tel" v-model="formulario.telefono" :disabled="guardando" maxlength="10" placeholder="Ej:3001234567">
 
           <!-- NUEVO: rango del cliente segun su historial -->
           <p v-if="formulario.telefono.length >= 10" class="precio-preview">
