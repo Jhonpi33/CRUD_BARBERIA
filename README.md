@@ -1,5 +1,65 @@
-# Vue 3 + Vite
+# Elysia
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+SaaS para automatizar y gestionar negocios de barbería.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+Dos tipos de cuenta:
+
+- **`barber`**: barbero individual (no pertenece a una barbería en la base de datos).
+- **`barbershop`**: barbería/equipo (caja, productos, inventario, reportes). Se construye después.
+
+## Estructura del repositorio (monorepo)
+
+```
+CURD_BARBERIA/
+  AGENTS.md      <- reglas de trabajo y alcance
+  README.md
+  .gitignore
+  backend/       <- API: Node + Express + Mongoose
+  frontend/      <- Web: Vue 3 + Vite
+```
+
+Cada carpeta tiene su propio `package.json` y su propio `.env.example`.
+**No hay `package.json` en la raíz.**
+
+- Una tarea de backend solo toca archivos dentro de `backend/`.
+- Una tarea de frontend solo toca archivos dentro de `frontend/`.
+
+## Requisitos
+
+- Node.js 18 o superior
+- MongoDB (local o un clúster de MongoDB Atlas)
+
+## Cómo correr cada parte
+
+### Backend (API)
+
+```bash
+cd backend
+cp .env.example .env   # completa MONGODB_URI y JWT_SECRET
+npm install
+npm run dev             # http://localhost:3000
+```
+
+### Frontend (web)
+
+```bash
+cd frontend
+npm install
+npm run dev             # http://localhost:5173
+```
+
+En desarrollo el frontend llama al backend en `/api` (proxy de Vite hacia
+`http://localhost:3000`), por lo que no hace falta configurar `VITE_API_URL`.
+
+## Alcance actual
+
+Landing, `/precios`, `/login`, `/register`, `/seleccionar-rol`,
+`/onboarding/barbero`, `/onboarding/barberia` y la autenticación en el backend.
+
+Todavía **no** se construyen: agenda, citas, clientes, IA, WhatsApp, pagos,
+inventario ni dashboards.
+
+## Convenciones
+
+Lee [AGENTS.md](./AGENTS.md): stack, estructura de carpetas, reglas de
+seguridad y flujo de trabajo (ramas y tipo de commits).
