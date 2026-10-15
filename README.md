@@ -53,11 +53,12 @@ En desarrollo el frontend llama al backend en `/api` (proxy de Vite hacia
 
 ## Alcance actual
 
-Landing, `/precios`, `/login`, `/register`, `/seleccionar-rol`,
-`/onboarding/barbero`, `/onboarding/barberia` y la autenticación en el backend.
+Landing, `/funciones`, `/precios`, `/login`, `/registro`,
+`/seleccionar-rol`, autenticación en el backend, onboarding de barbero y
+barbería (perfil persistido en MongoDB) y perfil público en `/u/:slug`.
 
 Todavía **no** se construyen: agenda, citas, clientes, IA, WhatsApp, pagos,
-inventario ni dashboards.
+inventario, gestión de empleados ni dashboards.
 
 ## Convenciones
 
