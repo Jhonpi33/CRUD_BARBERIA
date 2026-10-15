@@ -4,6 +4,7 @@ import cors from 'cors'
 
 import authRoutes from './routes/auth.routes.js'
 import adminRoutes from './routes/admin.routes.js'
+import profileRoutes from './routes/profile.routes.js'
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js'
 
 const app = express()
@@ -26,6 +27,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/profile', profileRoutes)
 
 app.use(notFoundHandler)
 app.use(errorHandler)

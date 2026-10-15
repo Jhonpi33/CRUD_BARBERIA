@@ -1,7 +1,13 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 
 const auth = useAuthStore()
+
+const publicLink = computed(() => {
+  const slug = auth.profile?.slug
+  return slug ? `${window.location.origin}/u/${slug}` : null
+})
 </script>
 
 <template>
@@ -12,6 +18,15 @@ const auth = useAuthStore()
     </p>
 
     <div class="panel-view__cards">
+      <article v-if="publicLink" class="panel-card">
+        <h2 class="panel-card__title">🔗 Tu enlace público</h2>
+        <p class="panel-card__description">
+          Compártelo para que te encuentren y reserven.
+        </p>
+        <a class="panel-card__link" :href="publicLink" target="_blank" rel="noopener">
+          {{ publicLink }}
+        </a>
+      </article>
       <article class="panel-card">
         <h2 class="panel-card__title">📅 Agenda</h2>
         <p class="panel-card__description">
@@ -33,3 +48,13 @@ const auth = useAuthStore()
     </div>
   </div>
 </template>
+
+<style scoped>
+.panel-card__link {
+  display: block;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary-soft);
+  word-break: break-all;
+}
+</style>

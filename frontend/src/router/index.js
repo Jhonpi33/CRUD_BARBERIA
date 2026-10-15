@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { useAuthStore, ROLE_PANEL } from '../stores/auth'
+import { useAuthStore } from '../stores/auth'
 
 import PublicLayout from '../layouts/PublicLayout.vue'
 import AuthLayout from '../layouts/AuthLayout.vue'
@@ -10,6 +10,7 @@ import Home from '../views/Home.vue'
 import Features from '../views/Features.vue'
 import Pricing from '../views/Pricing.vue'
 import Legal from '../views/Legal.vue'
+import PublicProfile from '../views/PublicProfile.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import RecoverPassword from '../views/RecoverPassword.vue'
@@ -31,6 +32,7 @@ const routes = [
       { path: 'funciones', name: 'features', component: Features },
       { path: 'precios', name: 'pricing', component: Pricing },
       { path: 'legal/:doc?', name: 'legal', component: Legal },
+      { path: 'u/:slug', name: 'public-profile', component: PublicProfile },
     ],
   },
 
@@ -57,13 +59,13 @@ const routes = [
         path: 'onboarding/barbero',
         name: 'barber-onboarding',
         component: BarberOnboarding,
-        meta: { roles: ['barber'] },
+        meta: { roles: ['barber'], onboarding: true },
       },
       {
         path: 'onboarding/barberia',
         name: 'barbershop-onboarding',
         component: BarbershopOnboarding,
-        meta: { roles: ['barbershop_owner'] },
+        meta: { roles: ['barbershop_owner'], onboarding: true },
       },
     ],
   },
@@ -126,6 +128,14 @@ router.beforeEach(async (to) => {
       return '/seleccionar-rol'
     }
 
+    const isOnboarding = Boolean(to.meta.onboarding)
+
+    // Con rol pero sin perfil completo: no dejar avanzar al panel.
+    // El onboarding siempre es accesible (también sirve para editar el perfil).
+    if (auth.needsOnboarding && !isOnboarding) {
+      return auth.onboardingPath
+    }
+
     // Rol definido pero intentando entrar a un panel que no le corresponde.
     const requiredRoles = to.meta.roles
     if (requiredRoles && !requiredRoles.includes(auth.role)) {
@@ -137,8 +147,9 @@ router.beforeEach(async (to) => {
 
   // 2) Rutas solo para visitantes (/login, /registro, /recuperar-contrasena)
   if (to.matched.some((record) => record.meta.guestOnly) && auth.isAuthenticated) {
-    // Con sesión iniciada y sin rol, siempre hay que elegir tipo de cuenta.
-    return auth.hasRole ? ROLE_PANEL[auth.role] || '/seleccionar-rol' : '/seleccionar-rol'
+    // Con sesión iniciada: según avance del onboarding, al onboarding o al panel.
+    if (!auth.hasRole) return '/seleccionar-rol'
+    return auth.needsOnboarding ? auth.onboardingPath : auth.panelPath
   }
 
   return true

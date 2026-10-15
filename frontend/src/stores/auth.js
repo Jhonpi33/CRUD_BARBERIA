@@ -34,6 +34,7 @@ export function friendlyAuthError(error) {
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem(TOKEN_KEY) || '')
   const user = ref(null)
+  const profile = ref(null)
   const loading = ref(false)
   const initialized = ref(false)
 
@@ -42,6 +43,18 @@ export const useAuthStore = defineStore('auth', () => {
   const hasRole = computed(() => Boolean(role.value))
   const roleLabel = computed(() => (role.value ? ROLE_LABEL[role.value] : null))
   const panelPath = computed(() => (role.value ? ROLE_PANEL[role.value] : '/seleccionar-rol'))
+
+  // Onboarding: el perfil vive en MongoDB, no en localStorage.
+  const onboardingPath = computed(() => {
+    if (role.value === 'barber') return '/onboarding/barbero'
+    if (role.value === 'barbershop_owner') return '/onboarding/barberia'
+    return null
+  })
+  // Roles sin onboarding propio (admin, empleado) nunca quedan atascados.
+  const needsOnboarding = computed(() => {
+    if (!onboardingPath.value) return false
+    return !profile.value?.completedAt
+  })
 
   function saveSession(newToken, newUser) {
     token.value = newToken
@@ -52,6 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
   function clearSession() {
     token.value = ''
     user.value = null
+    profile.value = null
     localStorage.removeItem(TOKEN_KEY)
   }
 
@@ -88,12 +102,54 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const { data } = await api.get('/auth/me')
       user.value = data.user
+      // Carga el perfil junto con la sesión: permite retomar el onboarding.
+      await fetchProfile()
       return data.user
     } catch {
       clearSession()
       return null
     } finally {
       initialized.value = true
+    }
+  }
+
+  /**
+   * GET /api/profile/me — trae (o crea vacío) el perfil en MongoDB.
+   * El backend crea el registro; el frontend no inventa datos locales.
+   */
+  async function fetchProfile() {
+    if (!token.value) return null
+    try {
+      const { data } = await api.get('/profile/me')
+      profile.value = data.profile
+      return data.profile
+    } catch {
+      profile.value = null
+      return null
+    }
+  }
+
+  /** PUT /api/profile/me — guarda parcialmente (retoma onboarding incompleto). */
+  async function saveProfile(payload) {
+    loading.value = true
+    try {
+      const { data } = await api.put('/profile/me', payload)
+      profile.value = data.profile
+      return data.profile
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /** PATCH /api/profile/me/complete — valida obligatorios y publica el enlace. */
+  async function completeProfile() {
+    loading.value = true
+    try {
+      const { data } = await api.patch('/profile/me/complete')
+      profile.value = data.profile
+      return data.profile
+    } finally {
+      loading.value = false
     }
   }
 
@@ -131,6 +187,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     token,
     user,
+    profile,
     loading,
     initialized,
     isAuthenticated,
@@ -138,9 +195,14 @@ export const useAuthStore = defineStore('auth', () => {
     hasRole,
     roleLabel,
     panelPath,
+    onboardingPath,
+    needsOnboarding,
     register,
     login,
     fetchMe,
+    fetchProfile,
+    saveProfile,
+    completeProfile,
     setRole,
     forgotPassword,
     resetPassword,
