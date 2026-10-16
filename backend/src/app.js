@@ -8,6 +8,9 @@ import profileRoutes from './routes/profile.routes.js'
 import serviceRoutes from './routes/service.routes.js'
 import scheduleRoutes from './routes/schedule.routes.js'
 import availabilityRoutes from './routes/availability.routes.js'
+import appointmentRoutes from './routes/appointment.routes.js'
+import clientRoutes from './routes/client.routes.js'
+import publicBookingRoutes from './routes/publicBooking.routes.js'
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js'
 
 const app = express()
@@ -34,6 +37,9 @@ app.use('/api/profile', profileRoutes)
 app.use('/api/services', serviceRoutes)
 app.use('/api/schedule', scheduleRoutes)
 app.use('/api/availability', availabilityRoutes)
+app.use('/api/appointments', appointmentRoutes)
+app.use('/api/clients', clientRoutes)
+app.use('/api/public/booking', publicBookingRoutes)
 
 app.use(notFoundHandler)
 app.use(errorHandler)
