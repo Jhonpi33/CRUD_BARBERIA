@@ -5,10 +5,7 @@
   `elysia_test` (se vacía al inicio de cada ejecución).
   Ejecutar con: npm test
 */
-process.env.NODE_ENV = 'test'
-process.env.JWT_SECRET = 'secreto-de-pruebas-solo-test'
-process.env.MONGODB_URI =
-  process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/elysia_test'
+import './env.js' // DEBE ir primero: fija NODE_ENV antes de cargar la app
 
 import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert/strict'
