@@ -63,9 +63,16 @@ function waLink(phone) {
         </li>
       </ul>
 
+      <RouterLink
+        class="btn btn--primary pub__cta"
+        :to="{ name: 'public-booking', params: { slug: route.params.slug } }"
+      >
+        Reservar cita en línea
+      </RouterLink>
+
       <a
         v-if="waLink(profile.phone)"
-        class="btn btn--primary pub__cta"
+        class="btn btn--secondary pub__cta pub__cta--wa"
         :href="waLink(profile.phone)"
         target="_blank"
         rel="noopener"
@@ -158,6 +165,10 @@ function waLink(phone) {
 
 .pub__cta {
   width: 100%;
+}
+
+.pub__cta--wa {
+  margin-top: var(--space-3);
 }
 
 .pub__brand {

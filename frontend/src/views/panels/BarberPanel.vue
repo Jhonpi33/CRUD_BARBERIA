@@ -48,8 +48,11 @@ const publicLink = computed(() => {
       <article class="panel-card">
         <h2 class="panel-card__title">📅 Agenda</h2>
         <p class="panel-card__description">
-          Módulo de agenda en construcción. Pronto podrás recibir turnos en línea.
+          Consulta tus citas por día o por semana y confirma, completa o cancela cada una.
         </p>
+        <RouterLink class="panel-card__nav" :to="{ name: 'barber-agenda' }">
+          Ver mi agenda →
+        </RouterLink>
       </article>
       <article class="panel-card">
         <h2 class="panel-card__title">👤 Clientes</h2>

@@ -34,6 +34,15 @@ const p = computed(() => auth.profile)
           Administrar horarios →
         </RouterLink>
       </article>
+      <article class="panel-card">
+        <h2 class="panel-card__title">📅 Agenda</h2>
+        <p class="panel-card__description">
+          Consulta las citas del negocio por día o por semana y gestiona sus estados.
+        </p>
+        <RouterLink class="panel-card__nav" :to="{ name: 'barbershop-agenda' }">
+          Ver la agenda →
+        </RouterLink>
+      </article>
       <article v-if="p" class="panel-card">
         <h2 class="panel-card__title">🏪 Tu negocio</h2>
         <p class="panel-card__description">

@@ -11,6 +11,7 @@ import Features from '../views/Features.vue'
 import Pricing from '../views/Pricing.vue'
 import Legal from '../views/Legal.vue'
 import PublicProfile from '../views/PublicProfile.vue'
+import PublicBooking from '../views/PublicBooking.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import RecoverPassword from '../views/RecoverPassword.vue'
@@ -23,6 +24,7 @@ import EmployeePanel from '../views/panels/EmployeePanel.vue'
 import AdminPanel from '../views/panels/AdminPanel.vue'
 import Services from '../views/panels/Services.vue'
 import Schedule from '../views/panels/Schedule.vue'
+import Agenda from '../views/panels/Agenda.vue'
 
 const routes = [
   // ---------- Áreas públicas ----------
@@ -35,6 +37,8 @@ const routes = [
       { path: 'precios', name: 'pricing', component: Pricing },
       { path: 'legal/:doc?', name: 'legal', component: Legal },
       { path: 'u/:slug', name: 'public-profile', component: PublicProfile },
+      // Reserva pública (Fase 5): sin cuenta, la autorización vive en backend.
+      { path: 'u/:slug/reservar', name: 'public-booking', component: PublicBooking },
     ],
   },
 
@@ -94,6 +98,12 @@ const routes = [
         meta: { roles: ['barber'] },
       },
       {
+        path: 'barbero/agenda',
+        name: 'barber-agenda',
+        component: Agenda,
+        meta: { roles: ['barber'] },
+      },
+      {
         path: 'barberia',
         name: 'barbershop-panel',
         component: BarbershopPanel,
@@ -109,6 +119,12 @@ const routes = [
         path: 'barberia/horarios',
         name: 'barbershop-schedule',
         component: Schedule,
+        meta: { roles: ['barbershop_owner'] },
+      },
+      {
+        path: 'barberia/agenda',
+        name: 'barbershop-agenda',
+        component: Agenda,
         meta: { roles: ['barbershop_owner'] },
       },
       {
