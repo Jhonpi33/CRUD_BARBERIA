@@ -18,7 +18,8 @@ const router = Router()
 /** Rate limit para login y registro (fuerza bruta / registros masivos). */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  // En tests se amplía para poder crear las cuentas de prueba.
+  limit: process.env.NODE_ENV === 'test' ? 10000 : 10,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { message: 'Demasiados intentos. Intenta de nuevo en unos minutos.' },
