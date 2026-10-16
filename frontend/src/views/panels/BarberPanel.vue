@@ -18,6 +18,24 @@ const publicLink = computed(() => {
     </p>
 
     <div class="panel-view__cards">
+      <article class="panel-card">
+        <h2 class="panel-card__title">✂️ Mis servicios</h2>
+        <p class="panel-card__description">
+          Crea tus servicios, define precios y duración, actívalos o desactívalos.
+        </p>
+        <RouterLink class="panel-card__nav" :to="{ name: 'barber-services' }">
+          Administrar servicios →
+        </RouterLink>
+      </article>
+      <article class="panel-card">
+        <h2 class="panel-card__title">🕒 Mis horarios</h2>
+        <p class="panel-card__description">
+          Configura tus días, bloques de atención y descansos de la semana.
+        </p>
+        <RouterLink class="panel-card__nav" :to="{ name: 'barber-schedule' }">
+          Administrar horarios →
+        </RouterLink>
+      </article>
       <article v-if="publicLink" class="panel-card">
         <h2 class="panel-card__title">🔗 Tu enlace público</h2>
         <p class="panel-card__description">
@@ -56,5 +74,17 @@ const publicLink = computed(() => {
   font-size: var(--font-size-sm);
   color: var(--color-primary-soft);
   word-break: break-all;
+}
+
+.panel-card__nav {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary-soft);
+}
+
+.panel-card__nav:hover {
+  color: var(--color-primary);
 }
 </style>

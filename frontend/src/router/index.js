@@ -21,6 +21,8 @@ import BarberPanel from '../views/panels/BarberPanel.vue'
 import BarbershopPanel from '../views/panels/BarbershopPanel.vue'
 import EmployeePanel from '../views/panels/EmployeePanel.vue'
 import AdminPanel from '../views/panels/AdminPanel.vue'
+import Services from '../views/panels/Services.vue'
+import Schedule from '../views/panels/Schedule.vue'
 
 const routes = [
   // ---------- Áreas públicas ----------
@@ -78,9 +80,35 @@ const routes = [
     children: [
       { path: 'barbero', name: 'barber-panel', component: BarberPanel, meta: { roles: ['barber'] } },
       {
+        // Módulo Fase 4: servicios y horarios. Mismas vistas para barbero y
+        // barbería; la autorización real (propiedad del recurso) vive en el backend.
+        path: 'barbero/servicios',
+        name: 'barber-services',
+        component: Services,
+        meta: { roles: ['barber'] },
+      },
+      {
+        path: 'barbero/horarios',
+        name: 'barber-schedule',
+        component: Schedule,
+        meta: { roles: ['barber'] },
+      },
+      {
         path: 'barberia',
         name: 'barbershop-panel',
         component: BarbershopPanel,
+        meta: { roles: ['barbershop_owner'] },
+      },
+      {
+        path: 'barberia/servicios',
+        name: 'barbershop-services',
+        component: Services,
+        meta: { roles: ['barbershop_owner'] },
+      },
+      {
+        path: 'barberia/horarios',
+        name: 'barbershop-schedule',
+        component: Schedule,
         meta: { roles: ['barbershop_owner'] },
       },
       {

@@ -16,6 +16,24 @@ const p = computed(() => auth.profile)
     </p>
 
     <div class="panel-view__cards">
+      <article class="panel-card">
+        <h2 class="panel-card__title">✂️ Servicios del negocio</h2>
+        <p class="panel-card__description">
+          Administra los servicios generales de la barbería con sus precios y duraciones.
+        </p>
+        <RouterLink class="panel-card__nav" :to="{ name: 'barbershop-services' }">
+          Administrar servicios →
+        </RouterLink>
+      </article>
+      <article class="panel-card">
+        <h2 class="panel-card__title">🕒 Horarios del negocio</h2>
+        <p class="panel-card__description">
+          Define los días y bloques de atención de la barbería y sus descansos.
+        </p>
+        <RouterLink class="panel-card__nav" :to="{ name: 'barbershop-schedule' }">
+          Administrar horarios →
+        </RouterLink>
+      </article>
       <article v-if="p" class="panel-card">
         <h2 class="panel-card__title">🏪 Tu negocio</h2>
         <p class="panel-card__description">
@@ -51,5 +69,17 @@ const p = computed(() => auth.profile)
 <style scoped>
 .panel-view__edit {
   color: var(--color-primary-soft);
+}
+
+.panel-card__nav {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary-soft);
+}
+
+.panel-card__nav:hover {
+  color: var(--color-primary);
 }
 </style>
