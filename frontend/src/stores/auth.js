@@ -87,6 +87,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const { data } = await api.post('/auth/login', { email, password })
       saveSession(data.token, data.user)
+      // Carga el perfil junto con el login: evita que un usuario con perfil
+      // completado caiga al onboarding por una condición de carrera del guard
+      // (el guard no vuelve a traer la sesión si ya estaba inicializada).
+      await fetchProfile()
       return data.user
     } finally {
       loading.value = false
