@@ -421,33 +421,33 @@ function statusClass(status) {
 }
 
 .appt__badge--pending {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.12);
-  border-color: rgba(251, 191, 36, 0.4);
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: var(--warning-border);
 }
 
 .appt__badge--confirmed {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.12);
-  border-color: rgba(96, 165, 250, 0.4);
+  color: var(--info);
+  background: var(--info-soft);
+  border-color: var(--info-border);
 }
 
 .appt__badge--completed {
-  color: var(--color-accent);
-  background: rgba(52, 211, 153, 0.12);
-  border-color: rgba(52, 211, 153, 0.4);
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: var(--success-border);
 }
 
 .appt__badge--cancelled {
-  color: var(--color-text-muted);
-  background: var(--color-surface-2);
-  border-color: var(--color-border);
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 
 .appt__badge--no_show {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.4);
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
 }
 
 .agenda__week-wrap {
@@ -501,11 +501,11 @@ function statusClass(status) {
   gap: 2px;
 }
 
-.weekday__item.appt__badge--pending { border-left-color: #fbbf24; }
-.weekday__item.appt__badge--confirmed { border-left-color: #60a5fa; }
-.weekday__item.appt__badge--completed { border-left-color: var(--color-accent); }
-.weekday__item.appt__badge--cancelled { border-left-color: var(--color-border); }
-.weekday__item.appt__badge--no_show { border-left-color: #f87171; }
+.weekday__item.appt__badge--pending { border-left-color: var(--warning); }
+.weekday__item.appt__badge--confirmed { border-left-color: var(--info); }
+.weekday__item.appt__badge--completed { border-left-color: var(--success); }
+.weekday__item.appt__badge--cancelled { border-left-color: var(--text-faint); }
+.weekday__item.appt__badge--no_show { border-left-color: var(--danger); }
 
 .weekday__service {
   color: var(--color-text-muted);

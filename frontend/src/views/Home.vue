@@ -520,9 +520,9 @@ const faqs = [
 
 .ai-chat__bubble--ia {
   align-self: flex-start;
-  background: rgba(212, 175, 55, 0.12);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  color: var(--color-primary-soft);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--text);
 }
 
 /* ---------- Pasos ---------- */

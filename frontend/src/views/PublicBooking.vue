@@ -385,8 +385,8 @@ function priceLabel(value) {
   justify-content: center;
   font-size: 1.6rem;
   color: var(--color-accent);
-  background: rgba(52, 211, 153, 0.12);
-  border: 1px solid rgba(52, 211, 153, 0.4);
+  background: var(--success-soft);
+  border: 1px solid var(--success-border);
 }
 
 .book__step {

@@ -1,0 +1,84 @@
+/*
+  Elysia — Design tokens (D1)
+  Paleta elegida: C+ "Claro con azul" (tema claro, acento azul).
+  Regla: TODO color, radio, sombra, tamaño de texto y espaciado vive aquí.
+  Los componentes NUNCA deben llevar colores sueltos (#abc / rgba(...)).
+*/
+:root {
+  /* ----- Paleta base ----- */
+  --bg: #f5f7fa;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #eef2f8;
+  --border: #dce3ee;
+  --border-soft: #e9edf3;
+
+  /* ----- Texto (contraste AA sobre --bg / --surface) ----- */
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-faint: #64748b;
+
+  /* ----- Acento (azul) ----- */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-contrast: #ffffff;
+  /* Texto sobre fondos sólidos de color (botones, puntos de badge) */
+  --on-solid: #ffffff;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --accent-border: rgba(37, 99, 235, 0.35);
+
+  /* ----- Estados (semánticos) ----- */
+  --success: #15803d;
+  --success-soft: rgba(21, 128, 61, 0.1);
+  --success-border: rgba(21, 128, 61, 0.35);
+
+  --warning: #b45309;
+  --warning-soft: rgba(180, 83, 9, 0.1);
+  --warning-border: rgba(180, 83, 9, 0.35);
+
+  --danger: #b91c1c;
+  --danger-soft: rgba(185, 28, 28, 0.1);
+  --danger-border: rgba(185, 28, 28, 0.35);
+
+  --info: #0369a1;
+  --info-soft: rgba(3, 105, 161, 0.1);
+  --info-border: rgba(3, 105, 161, 0.35);
+
+  /* ----- Espaciado (base 4px) ----- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ----- Radios ----- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 999px;
+
+  /* ----- Sombras (tinta sobre fondo claro) ----- */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.14);
+
+  /* ----- Tipografía ----- */
+  --font-display: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-size-xs: 0.72rem;
+  --font-size-sm: 0.82rem;
+  --font-size-base: 0.95rem;
+  --font-size-md: 1.05rem;
+  --font-size-lg: 1.5rem;
+  --font-size-xl: 2.2rem;
+
+  /* ----- Layout ----- */
+  --container-max: 1120px;
+
+  /* ----- Movimiento (respeta prefers-reduced-motion vía base.css) ----- */
+  --motion-fast: 150ms;
+  --motion: 200ms;
+}
