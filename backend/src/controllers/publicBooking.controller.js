@@ -6,11 +6,13 @@ import { Schedule } from '../models/Schedule.js'
 import { Appointment } from '../models/Appointment.js'
 import { Client, normalizePhone } from '../models/Client.js'
 import { Notification } from '../models/Notification.js'
+import { User } from '../models/User.js'
 
 import { computeAvailability, AvailabilityError, isValidDate, dayKeyFromDate } from '../utils/availability.js'
 import { STEP_MINUTES, occupiedSlotKeys, busyRangesFromAppointments } from '../utils/booking.js'
 import { timeToMinutes } from '../utils/scheduleValidation.js'
 import { wallClockToUtc, utcToWallClock } from '../utils/timezone.js'
+import { sendBookingEmail } from '../utils/mailer.js'
 
 /**
  * Política de autorización de la Fase 5 para reservar:
@@ -326,6 +328,28 @@ export async function createPublicBooking(req, res, next) {
       if (err?.code !== 11000) {
         console.error('[notificaciones] no se pudo crear la notificación de reserva:', err)
       }
+    }
+
+    // --- Correo de aviso al dueño (best-effort) ---
+    // Bloque propio e independiente: si el correo no está configurado
+    // (faltan SMTP_*), está mal configurado o falla el envío, solo se
+    // registra y la reserva sigue siendo válida (201).
+    try {
+      const ownerUser = await User.findById(appointment.owner).select('email name')
+      const mailResult = await sendBookingEmail({
+        ownerEmail: ownerUser?.email,
+        ownerName: ownerUser?.name,
+        clientName: cleanName,
+        service: { name: service.name, price: service.price, durationMinutes: service.durationMinutes },
+        startUtc: appointment.startUtc,
+        timezone: appointment.timezone,
+      })
+
+      if (mailResult.error) {
+        console.error('[mailer] no se pudo enviar el correo de reserva:', mailResult.error)
+      }
+    } catch (err) {
+      console.error('[mailer] error inesperado enviando el correo de reserva:', err)
     }
 
     // Respuesta PÚBLICA: sin datos internos del dueño.
