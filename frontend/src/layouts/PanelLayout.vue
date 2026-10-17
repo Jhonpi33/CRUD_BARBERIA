@@ -2,10 +2,13 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, ROLE_LABEL } from '../stores/auth'
+import { useNotificationsStore } from '../stores/notifications'
+import NotificationBell from '../components/NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const notifs = useNotificationsStore()
 
 // Ruta base del panel según el rol (barber y barbershop comparten vistas).
 const base = computed(() => (auth.role === 'barber' ? '/panel/barbero' : '/panel/barberia'))
@@ -33,6 +36,7 @@ function isActive(to, exact) {
 }
 
 function onLogout() {
+  notifs.$reset()
   auth.logout()
   router.push('/')
 }
@@ -68,9 +72,12 @@ function onLogout() {
       </nav>
 
       <div class="panel__sidebar-foot">
-        <span v-if="auth.role" class="panel__badge">
-          {{ ROLE_LABEL[auth.role] || auth.role }}
-        </span>
+        <div class="panel__sidebar-user">
+          <NotificationBell up />
+          <span v-if="auth.role" class="panel__badge">
+            {{ ROLE_LABEL[auth.role] || auth.role }}
+          </span>
+        </div>
         <span class="panel__user">{{ auth.user?.name }}</span>
         <button class="btn btn--secondary btn--sm btn--block" type="button" @click="onLogout">
           Cerrar sesión
@@ -84,6 +91,7 @@ function onLogout() {
       <header class="panel__topbar">
         <RouterLink class="panel__brand" to="/">Elysia</RouterLink>
         <div class="panel__meta">
+          <NotificationBell />
           <span v-if="auth.role" class="panel__badge">
             {{ ROLE_LABEL[auth.role] || auth.role }}
           </span>
@@ -183,6 +191,14 @@ function onLogout() {
   flex-direction: column;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
+}
+
+/* Fila: campana a la izquierda, badge de rol a la derecha */
+.panel__sidebar-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .panel__badge {
