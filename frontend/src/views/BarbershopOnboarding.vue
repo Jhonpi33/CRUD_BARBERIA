@@ -101,6 +101,16 @@ async function onFinish() {
 <template>
   <div class="onboarding">
     <p class="onboarding__step">Paso 1 de 1 · Perfil de barbería</p>
+    <div
+      class="onboarding__progress"
+      role="progressbar"
+      aria-valuenow="1"
+      aria-valuemin="1"
+      aria-valuemax="1"
+      aria-label="Progreso del formulario"
+    >
+      <span class="onboarding__progress-bar" style="width: 100%"></span>
+    </div>
     <h1 class="onboarding__title">Configura tu barbería</h1>
     <p class="onboarding__lead">
       Estos datos identifican tu negocio y definen cómo agenda. Puedes guardarlo a medias y
@@ -226,9 +236,27 @@ async function onFinish() {
   font-size: var(--font-size-xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-primary-soft);
+  color: var(--accent);
+  font-weight: 600;
   margin-bottom: var(--space-2);
   text-align: center;
+}
+
+.onboarding__progress {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.onboarding__progress-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width var(--motion) ease;
 }
 
 .onboarding__title {
@@ -238,7 +266,7 @@ async function onFinish() {
 }
 
 .onboarding__lead {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
   text-align: center;
   margin-bottom: var(--space-5);
@@ -246,12 +274,12 @@ async function onFinish() {
 
 .onboarding__loading {
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   padding: var(--space-6) 0;
 }
 
 .onboarding__fieldset {
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   padding: var(--space-4);
 }
@@ -259,7 +287,7 @@ async function onFinish() {
 .onboarding__legend {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-primary-soft);
+  color: var(--accent);
   padding: 0 var(--space-2);
 }
 
@@ -283,6 +311,15 @@ async function onFinish() {
 @media (max-width: 480px) {
   .onboarding__grid {
     grid-template-columns: 1fr;
+  }
+
+  .onboarding__actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    padding: var(--space-3) 0;
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--border-soft);
   }
 }
 </style>

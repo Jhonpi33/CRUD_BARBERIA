@@ -217,6 +217,49 @@
   color: var(--text-muted);
 }
 
+/* Campo con botón de mostrar/ocultar contraseña */
+.input-wrap {
+  position: relative;
+  display: block;
+}
+
+.input-wrap .input,
+.input-wrap .form__input {
+  padding-right: 44px;
+}
+
+.input-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease;
+}
+
+.input-toggle:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.input-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.input-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
 .input-error,
 .form__error {
   display: flex;

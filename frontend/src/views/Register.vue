@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, friendlyAuthError } from '../stores/auth'
 import Button from '../components/Button.vue'
+import PasswordField from '../components/PasswordField.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -68,30 +69,23 @@ async function onSubmit() {
 
       <label class="form__field">
         <span class="form__label">Contraseña</span>
-        <input
+        <PasswordField
           v-model="form.password"
-          class="form__input"
-          type="password"
           name="password"
           autocomplete="new-password"
           placeholder="Mínimo 8 caracteres"
-          minlength="8"
-          maxlength="72"
-          required
+          :minlength="8"
         />
       </label>
 
       <label class="form__field">
         <span class="form__label">Confirmar contraseña</span>
-        <input
+        <PasswordField
           v-model="form.confirm"
-          class="form__input"
-          type="password"
           name="confirm"
           autocomplete="new-password"
           placeholder="Repite tu contraseña"
-          minlength="8"
-          required
+          :minlength="8"
         />
       </label>
 
