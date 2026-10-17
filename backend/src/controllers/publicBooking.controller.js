@@ -5,11 +5,12 @@ import { Service } from '../models/Service.js'
 import { Schedule } from '../models/Schedule.js'
 import { Appointment } from '../models/Appointment.js'
 import { Client, normalizePhone } from '../models/Client.js'
+import { Notification } from '../models/Notification.js'
 
 import { computeAvailability, AvailabilityError, isValidDate, dayKeyFromDate } from '../utils/availability.js'
 import { STEP_MINUTES, occupiedSlotKeys, busyRangesFromAppointments } from '../utils/booking.js'
 import { timeToMinutes } from '../utils/scheduleValidation.js'
-import { wallClockToUtc } from '../utils/timezone.js'
+import { wallClockToUtc, utcToWallClock } from '../utils/timezone.js'
 
 /**
  * Política de autorización de la Fase 5 para reservar:
@@ -300,6 +301,31 @@ export async function createPublicBooking(req, res, next) {
         })
       }
       throw err
+    }
+
+    // --- Notificación interna del panel (best-effort) ---
+    // Se crea DESPUÉS de la cita y dentro de su propio try/catch: si falla,
+    // solo se registra el error y la reserva sigue siendo válida. El
+    // dedupeKey (type:appointmentId) con índice único evita duplicados si
+    // este bloque se ejecutara dos veces para la misma cita.
+    try {
+      const w = utcToWallClock(appointment.startUtc.getTime(), appointment.timezone)
+      const fecha = `${w.year}-${String(w.month).padStart(2, '0')}-${String(w.day).padStart(2, '0')}`
+      const hora = `${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')}`
+
+      await Notification.create({
+        owner: appointment.owner,
+        type: 'booking_created',
+        appointment: appointment._id,
+        title: 'Nueva reserva',
+        message: `${cleanName} reservó "${service.name}" para el ${fecha} a las ${hora} (${appointment.timezone}).`,
+        dedupeKey: `booking_created:${appointment._id}`,
+      })
+    } catch (err) {
+      // 11000 = clave duplicada: la notificación ya existe; no es un error.
+      if (err?.code !== 11000) {
+        console.error('[notificaciones] no se pudo crear la notificación de reserva:', err)
+      }
     }
 
     // Respuesta PÚBLICA: sin datos internos del dueño.
