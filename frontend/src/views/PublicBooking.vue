@@ -312,11 +312,11 @@ function priceLabel(value) {
 .book {
   max-width: 640px;
   margin: 0 auto;
-  padding: var(--space-7) var(--space-4);
+  padding: clamp(24px, 5vw, 48px) var(--space-4);
 }
 
 .book__state {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   text-align: center;
   padding: var(--space-6) 0;
 }
@@ -335,22 +335,34 @@ function priceLabel(value) {
 }
 
 .book__back {
+  display: block;
   font: inherit;
   font-size: var(--font-size-sm);
   background: none;
   border: none;
-  color: var(--color-primary-soft);
+  color: var(--accent);
   cursor: pointer;
   padding: 0;
-  margin-bottom: var(--space-3);
+  margin: 0 auto var(--space-3);
+  transition: color var(--motion-fast) ease;
+}
+
+.book__back:hover {
+  color: var(--accent-hover);
 }
 
 .book__type {
+  display: inline-block;
   font-size: var(--font-size-xs);
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-primary-soft);
-  margin-bottom: var(--space-2);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  margin-bottom: var(--space-3);
 }
 
 .book__title {
@@ -359,16 +371,17 @@ function priceLabel(value) {
 }
 
 .book__lead {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
 }
 
 .book__card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-sm);
 }
 
 .book__card--ok {
@@ -376,22 +389,32 @@ function priceLabel(value) {
 }
 
 .book__ok-icon {
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   margin: 0 auto var(--space-4);
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
-  color: var(--color-accent);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--success);
   background: var(--success-soft);
   border: 1px solid var(--success-border);
 }
 
 .book__step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
   font-size: var(--font-size-md);
   margin-bottom: var(--space-4);
+  padding: 4px 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
 }
 
 .book__summary {
@@ -407,12 +430,12 @@ function priceLabel(value) {
   display: flex;
   justify-content: space-between;
   gap: var(--space-3);
-  border-bottom: 1px dashed var(--color-border-soft);
+  border-bottom: 1px dashed var(--border-soft);
   padding-bottom: var(--space-2);
 }
 
 .book__summary span {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .book__services {
@@ -430,16 +453,23 @@ function priceLabel(value) {
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
+  transition: border-color var(--motion) ease, background-color var(--motion) ease, box-shadow var(--motion) ease;
 }
 
+.service-pick:hover {
+  border-color: var(--accent-border);
+}
+
+/* Seleccionado: borde accent + fondo accent-soft (nunca solo color: doble borde) */
 .service-pick--on {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .service-pick__name {
@@ -448,7 +478,8 @@ function priceLabel(value) {
 
 .service-pick__meta {
   font-size: var(--font-size-sm);
-  color: var(--color-primary-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .book__dates {
@@ -461,21 +492,29 @@ function priceLabel(value) {
 .date-chip {
   font: inherit;
   font-size: var(--font-size-sm);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  padding: 6px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
   cursor: pointer;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
+  gap: 2px;
+  transition: border-color var(--motion) ease, background-color var(--motion) ease, color var(--motion) ease;
+}
+
+.date-chip:hover {
+  border-color: var(--accent-border);
 }
 
 .date-chip--on {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent);
+  font-weight: 600;
 }
 
 .date-chip__today {
@@ -493,17 +532,24 @@ function priceLabel(value) {
 .slot {
   font: inherit;
   font-variant-numeric: tabular-nums;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 8px 6px;
+  padding: 10px 6px;
   cursor: pointer;
+  transition: border-color var(--motion) ease, background-color var(--motion) ease, color var(--motion) ease;
+}
+
+.slot:hover {
+  border-color: var(--accent-border);
 }
 
 .slot--on {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent);
+  font-weight: 600;
 }
 
 .book__form {
@@ -514,14 +560,14 @@ function priceLabel(value) {
 
 .book__recap {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-soft);
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   padding: var(--space-3);
 }
 
 .book__recap strong {
-  color: var(--color-text);
+  color: var(--text);
 }
 </style>
