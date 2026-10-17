@@ -162,25 +162,27 @@ h3 {
   border-color: var(--color-primary);
 }
 
-.form__error {
-  color: var(--danger);
-  font-size: var(--font-size-sm);
-  background: var(--danger-soft);
-  border: 1px solid var(--danger-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-}
-
+/* .form__error se define en styles/components.css (sistema de diseño D1/D2). */
 .form__info {
-  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--info);
   font-size: var(--font-size-sm);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-soft);
+  font-weight: 500;
+  background: var(--info-soft);
+  border: 1px solid var(--info-border);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
 }
 
 /* ---------- Layout público ---------- */
+.layout-public {
+  /* Evita el desbordamiento horizontal del ::before del navbar (100vw).
+     "clip" (a diferencia de "hidden") no rompe position: sticky. */
+  overflow-x: clip;
+}
+
 .layout-public__main {
   min-height: 60vh;
 }
@@ -221,20 +223,50 @@ h3 {
   padding: var(--space-4);
 }
 
+/* ---------- Navbar ----------
+   Barra translúcida con desenfoque y borde inferior sutil (D2).
+   El pseudo-elemento ::before extiende el fondo a todo el ancho aunque
+   .navbar esté limitado al contenedor. */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.navbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  background: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border-soft);
+  z-index: -1;
+}
+
 .navbar__brand {
   font-family: var(--font-display);
+  font-weight: 700;
   font-size: var(--font-size-md);
-  color: var(--color-primary-soft);
-  letter-spacing: 0.04em;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.1;
 }
 
 .navbar__brand-tag {
   display: block;
   font-family: var(--font-body);
+  font-weight: 500;
   font-size: 0.62rem;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .navbar__links {
@@ -243,22 +275,37 @@ h3 {
   flex-wrap: wrap;
   align-items: center;
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
-.navbar__links a:hover,
-.navbar__links a.router-link-active {
-  color: var(--color-primary-soft);
+.navbar__links a {
+  padding: 6px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.navbar__links a:hover {
+  color: var(--accent);
+}
+
+/* Enlace activo resaltado (nunca solo con color: añade subrayado).
+   Se usa exact-active para que "/" no quede marcado en todas las rutas. */
+.navbar__links a.router-link-exact-active:not(.navbar__cta) {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .navbar__link-btn {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
+  padding: 6px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--motion-fast) ease;
 }
 
 .navbar__link-btn:hover {
-  color: var(--color-primary-soft);
+  color: var(--accent);
 }
 
 .navbar__link-btn--muted {
@@ -266,15 +313,17 @@ h3 {
 }
 
 .navbar__cta {
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-  color: var(--color-primary-contrast) !important;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-contrast) !important;
   font-weight: 600;
+  border-bottom: none !important;
+  transition: background-color var(--motion-fast) ease;
 }
 
 .navbar__cta:hover {
-  filter: brightness(1.06);
+  background: var(--accent-hover);
 }
 
 /* ---------- Botón genérico ---------- */
@@ -337,9 +386,10 @@ h3 {
 
 /* ---------- Footer ---------- */
 .footer {
-  border-top: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--border-soft);
   padding: var(--space-7) var(--space-4) var(--space-5);
-  background: var(--color-surface);
+  background: var(--surface);
+  margin-top: var(--space-7);
 }
 
 .footer__inner {
@@ -353,14 +403,15 @@ h3 {
 
 .footer__logo {
   font-family: var(--font-display);
+  font-weight: 700;
   font-size: var(--font-size-md);
-  color: var(--color-primary-soft);
+  color: var(--accent);
   margin-bottom: var(--space-2);
 }
 
 .footer__tagline {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   max-width: 320px;
 }
 
@@ -369,30 +420,36 @@ h3 {
   flex-direction: column;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
+}
+
+.footer__col a {
+  color: var(--text-muted);
+  transition: color var(--motion-fast) ease;
 }
 
 .footer__heading {
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 600;
   font-size: var(--font-size-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text);
+  color: var(--text);
   margin-bottom: var(--space-1);
 }
 
 .footer__col a:hover {
-  color: var(--color-primary-soft);
+  color: var(--accent);
 }
 
 .footer__copy {
   max-width: var(--container-max);
   margin: var(--space-6) auto 0;
   padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--border-soft);
   text-align: center;
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: var(--text-faint);
 }
 
 @media (max-width: 720px) {
