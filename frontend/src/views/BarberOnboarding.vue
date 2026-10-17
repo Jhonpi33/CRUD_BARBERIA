@@ -93,6 +93,16 @@ function payload() {
 <template>
   <div class="onboarding">
     <p class="onboarding__step">Paso 1 de 1 · Perfil de barbero</p>
+    <div
+      class="onboarding__progress"
+      role="progressbar"
+      aria-valuenow="1"
+      aria-valuemin="1"
+      aria-valuemax="1"
+      aria-label="Progreso del formulario"
+    >
+      <span class="onboarding__progress-bar" style="width: 100%"></span>
+    </div>
     <h1 class="onboarding__title">Crea tu perfil profesional</h1>
     <p class="onboarding__lead">
       Esto es lo que verán tus clientes en tu enlace público. Puedes guardarlo a medias y
@@ -192,9 +202,27 @@ function payload() {
   font-size: var(--font-size-xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-primary-soft);
+  color: var(--accent);
+  font-weight: 600;
   margin-bottom: var(--space-2);
   text-align: center;
+}
+
+.onboarding__progress {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.onboarding__progress-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width var(--motion) ease;
 }
 
 .onboarding__title {
@@ -204,7 +232,7 @@ function payload() {
 }
 
 .onboarding__lead {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
   text-align: center;
   margin-bottom: var(--space-5);
@@ -212,7 +240,7 @@ function payload() {
 
 .onboarding__loading {
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   padding: var(--space-6) 0;
 }
 
@@ -230,23 +258,35 @@ function payload() {
 .onboarding__public {
   margin-top: var(--space-5);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   word-break: break-all;
   text-align: center;
 }
 
 .onboarding__public a {
-  color: var(--color-primary-soft);
+  color: var(--accent);
 }
 
 .form__hint {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   text-align: right;
 }
 
 .form__textarea {
   resize: vertical;
   min-height: 90px;
+}
+
+/* Fijar Atrás/Continuar abajo en móvil */
+@media (max-width: 560px) {
+  .onboarding__actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    padding: var(--space-3) 0;
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--border-soft);
+  }
 }
 </style>

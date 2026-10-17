@@ -68,55 +68,30 @@ a {
   text-decoration: none;
 }
 
-/* ---------- Variables ---------- */
+/* ---------- Variables legacy → tokens (D1) ----------
+   Todas las variables --color-* que usan las vistas siguen existiendo,
+   pero ahora apuntan a los tokens de tokens.css. Los nombres que ya son
+   tokens (--font-*, --space-*, --radius-sm/md/lg, --shadow-md,
+   --container-max) se definen SOLO en tokens.css para no duplicarlos. */
 :root {
   /* Colores */
-  --color-bg: #0b0b0e;
-  --color-surface: #141419;
-  --color-surface-2: #1b1b22;
-  --color-border: #2a2a33;
-  --color-border-soft: #232328;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
 
-  --color-text: #ece8df;
-  --color-text-muted: #9c9aa3;
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
 
-  --color-primary: #d4af37; /* dorado barbería */
-  --color-primary-soft: #e9ce86;
-  --color-primary-contrast: #1a1509;
-  --color-accent: #34d399; /* verde: éxito / estados */
-  --color-danger: #e2725b;
-  --color-danger-soft: #ef9784;
+  --color-primary: var(--accent); /* era dorado → ahora azul */
+  --color-primary-soft: var(--accent); /* texto de acento */
+  --color-primary-contrast: var(--accent-contrast); /* texto sobre acento */
+  --color-accent: var(--success); /* verde: éxito / estados */
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger); /* era texto de error */
 
-  /* Tipografía */
-  --font-display: 'Bodoni Moda', 'Playfair Display', Georgia, serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-
-  --font-size-xs: 0.72rem;
-  --font-size-sm: 0.82rem;
-  --font-size-base: 0.95rem;
-  --font-size-md: 1.05rem;
-  --font-size-lg: 1.5rem;
-  --font-size-xl: 2.2rem;
-
-  /* Espaciados */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
-
-  /* Formas y sombras */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-pill: 999px;
-  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.35);
-
-  /* Layout */
-  --container-max: 1120px;
+  --radius-pill: var(--radius-full);
 }
 
 /* ---------- Estilos base de la aplicación ---------- */
@@ -131,7 +106,7 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.15;
 }
 
@@ -187,25 +162,27 @@ h3 {
   border-color: var(--color-primary);
 }
 
-.form__error {
-  color: var(--color-danger-soft);
-  font-size: var(--font-size-sm);
-  background: rgba(226, 114, 91, 0.1);
-  border: 1px solid rgba(226, 114, 91, 0.35);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-}
-
+/* .form__error se define en styles/components.css (sistema de diseño D1/D2). */
 .form__info {
-  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--info);
   font-size: var(--font-size-sm);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-soft);
+  font-weight: 500;
+  background: var(--info-soft);
+  border: 1px solid var(--info-border);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
 }
 
 /* ---------- Layout público ---------- */
+.layout-public {
+  /* Evita el desbordamiento horizontal del ::before del navbar (100vw).
+     "clip" (a diferencia de "hidden") no rompe position: sticky. */
+  overflow-x: clip;
+}
+
 .layout-public__main {
   min-height: 60vh;
 }
@@ -246,20 +223,50 @@ h3 {
   padding: var(--space-4);
 }
 
+/* ---------- Navbar ----------
+   Barra translúcida con desenfoque y borde inferior sutil (D2).
+   El pseudo-elemento ::before extiende el fondo a todo el ancho aunque
+   .navbar esté limitado al contenedor. */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.navbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  background: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border-soft);
+  z-index: -1;
+}
+
 .navbar__brand {
   font-family: var(--font-display);
+  font-weight: 700;
   font-size: var(--font-size-md);
-  color: var(--color-primary-soft);
-  letter-spacing: 0.04em;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.1;
 }
 
 .navbar__brand-tag {
   display: block;
   font-family: var(--font-body);
+  font-weight: 500;
   font-size: 0.62rem;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .navbar__links {
@@ -268,22 +275,37 @@ h3 {
   flex-wrap: wrap;
   align-items: center;
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
-.navbar__links a:hover,
-.navbar__links a.router-link-active {
-  color: var(--color-primary-soft);
+.navbar__links a {
+  padding: 6px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.navbar__links a:hover {
+  color: var(--accent);
+}
+
+/* Enlace activo resaltado (nunca solo con color: añade subrayado).
+   Se usa exact-active para que "/" no quede marcado en todas las rutas. */
+.navbar__links a.router-link-exact-active:not(.navbar__cta) {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .navbar__link-btn {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
+  padding: 6px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--motion-fast) ease;
 }
 
 .navbar__link-btn:hover {
-  color: var(--color-primary-soft);
+  color: var(--accent);
 }
 
 .navbar__link-btn--muted {
@@ -291,15 +313,17 @@ h3 {
 }
 
 .navbar__cta {
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-  color: var(--color-primary-contrast) !important;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-contrast) !important;
   font-weight: 600;
+  border-bottom: none !important;
+  transition: background-color var(--motion-fast) ease;
 }
 
 .navbar__cta:hover {
-  filter: brightness(1.06);
+  background: var(--accent-hover);
 }
 
 /* ---------- Botón genérico ---------- */
@@ -357,14 +381,15 @@ h3 {
 
 .btn--danger {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 /* ---------- Footer ---------- */
 .footer {
-  border-top: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--border-soft);
   padding: var(--space-7) var(--space-4) var(--space-5);
-  background: var(--color-surface);
+  background: var(--surface);
+  margin-top: var(--space-7);
 }
 
 .footer__inner {
@@ -378,14 +403,15 @@ h3 {
 
 .footer__logo {
   font-family: var(--font-display);
+  font-weight: 700;
   font-size: var(--font-size-md);
-  color: var(--color-primary-soft);
+  color: var(--accent);
   margin-bottom: var(--space-2);
 }
 
 .footer__tagline {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   max-width: 320px;
 }
 
@@ -394,30 +420,36 @@ h3 {
   flex-direction: column;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
+}
+
+.footer__col a {
+  color: var(--text-muted);
+  transition: color var(--motion-fast) ease;
 }
 
 .footer__heading {
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 600;
   font-size: var(--font-size-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text);
+  color: var(--text);
   margin-bottom: var(--space-1);
 }
 
 .footer__col a:hover {
-  color: var(--color-primary-soft);
+  color: var(--accent);
 }
 
 .footer__copy {
   max-width: var(--container-max);
   margin: var(--space-6) auto 0;
   padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--border-soft);
   text-align: center;
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: var(--text-faint);
 }
 
 @media (max-width: 720px) {
@@ -428,14 +460,15 @@ h3 {
 
 /* ---------- Acordeón (FAQ) ---------- */
 .faq-item {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   overflow: hidden;
+  transition: border-color var(--motion) ease;
 }
 
 .faq-item--open {
-  border-color: var(--color-border);
+  border-color: var(--accent-border);
 }
 
 .faq-item__question {
@@ -448,76 +481,28 @@ h3 {
   text-align: left;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--text);
+  transition: color var(--motion-fast) ease;
 }
 
 .faq-item__question:hover {
-  color: var(--color-primary-soft);
+  color: var(--accent);
 }
 
 .faq-item__icon {
-  color: var(--color-primary-soft);
+  color: var(--accent);
   font-size: var(--font-size-md);
   line-height: 1;
+  flex: none;
 }
 
 .faq-item__answer {
   padding: 0 var(--space-4) var(--space-4);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 /* ---------- Panel privado ---------- */
-.panel {
-  min-height: 100vh;
-  background: var(--color-bg);
-}
-
-.panel__topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-5);
-  border-bottom: 1px solid var(--color-border-soft);
-  background: var(--color-surface);
-}
-
-.panel__brand {
-  font-family: var(--font-display);
-  font-size: var(--font-size-md);
-  color: var(--color-primary-soft);
-}
-
-.panel__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  font-size: var(--font-size-sm);
-}
-
-.panel__badge {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  color: var(--color-primary-soft);
-  background: rgba(212, 175, 55, 0.12);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  border-radius: var(--radius-pill);
-  padding: 4px 10px;
-}
-
-.panel__user {
-  color: var(--color-text-muted);
-}
-
-.panel__body {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
-}
-
 /* Contenido compartido de los paneles */
 .panel-view__title {
   font-size: clamp(1.4rem, 4vw, 2rem);
@@ -525,7 +510,7 @@ h3 {
 }
 
 .panel-view__lead {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   margin-bottom: var(--space-6);
   max-width: 560px;
 }
@@ -537,10 +522,16 @@ h3 {
 }
 
 .panel-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   padding: var(--space-5);
+  transition: border-color var(--motion) ease, transform var(--motion) ease;
+}
+
+.panel-card:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-2px);
 }
 
 .panel-card__title {
@@ -550,7 +541,7 @@ h3 {
 
 .panel-card__description {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 /* ---------- Navbar responsive ---------- */

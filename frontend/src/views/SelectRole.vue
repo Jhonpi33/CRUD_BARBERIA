@@ -39,7 +39,12 @@ async function choose(role) {
         :disabled="auth.loading"
         @click="choose('barber')"
       >
-        <span class="role-card__icon" aria-hidden="true">💈</span>
+        <span class="role-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </span>
         <span class="role-card__title">Barbero individual</span>
         <span class="role-card__description">
           Trabajo solo: quiero mi agenda, mis clientes y mis cobros en orden.
@@ -55,7 +60,13 @@ async function choose(role) {
         :disabled="auth.loading"
         @click="choose('barbershop_owner')"
       >
-        <span class="role-card__icon" aria-hidden="true">✂️</span>
+        <span class="role-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18" />
+            <path d="M5 21V7l7-4 7 4v14" />
+            <path d="M9 21v-6h6v6" />
+          </svg>
+        </span>
         <span class="role-card__title">Dueño de barbería</span>
         <span class="role-card__description">
           Tengo un local con equipo: necesito ver agendas, caja, productos e informes.
@@ -78,15 +89,17 @@ async function choose(role) {
 .select-role__title {
   font-size: var(--font-size-lg);
   margin-bottom: var(--space-2);
+  text-align: center;
 }
 
 .select-role__lead {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
   margin-bottom: var(--space-5);
   max-width: 380px;
   margin-left: auto;
   margin-right: auto;
+  text-align: center;
 }
 
 .select-role__grid {
@@ -99,17 +112,26 @@ async function choose(role) {
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-5);
   text-align: center;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+  transition:
+    border-color var(--motion) ease,
+    background-color var(--motion) ease,
+    transform var(--motion) ease,
+    box-shadow var(--motion) ease;
 }
 
-.role-card:hover:not(:disabled) {
-  border-color: var(--color-primary);
+/* Borde y fondo accent al hover y al foco (nunca solo color: elevación + ícono) */
+.role-card:hover:not(:disabled),
+.role-card:focus-visible:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .role-card:disabled {
@@ -118,30 +140,43 @@ async function choose(role) {
 }
 
 .role-card__icon {
-  font-size: 1.8rem;
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: var(--space-2);
+}
+
+.role-card__icon svg {
+  width: 28px;
+  height: 28px;
 }
 
 .role-card__title {
   font-family: var(--font-display);
   font-size: var(--font-size-md);
-  color: var(--color-text);
+  color: var(--text);
 }
 
 .role-card__description {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .role-card__cta {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
   font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-primary-soft);
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .select-role__error {
   margin-top: var(--space-4);
-  color: var(--color-danger-soft);
+  color: var(--danger);
   font-size: var(--font-size-sm);
+  text-align: center;
 }
 </style>

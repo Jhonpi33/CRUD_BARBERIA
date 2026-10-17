@@ -44,7 +44,12 @@ function waLink(phone) {
         :src="profile.photoUrl || profile.logoUrl"
         :alt="profile.professionalName || profile.businessName"
       />
-      <div v-else class="pub__photo pub__photo--placeholder" aria-hidden="true">💈</div>
+      <div v-else class="pub__photo pub__photo--placeholder" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </div>
 
       <p class="pub__type">{{ profile.type === 'barber' ? 'Barbero' : 'Barbería' }}</p>
       <h1 class="pub__title">{{ profile.professionalName || profile.businessName }}</h1>
@@ -55,11 +60,20 @@ function waLink(phone) {
       <p v-if="profile.description" class="pub__desc">{{ profile.description }}</p>
 
       <ul class="pub__meta">
-        <li v-if="profile.location">📍 {{ profile.location }}</li>
-        <li v-if="profile.phone">📞 {{ profile.phone }}</li>
+        <li v-if="profile.location">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>{{ profile.location }}</span>
+        </li>
+        <li v-if="profile.phone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span>{{ profile.phone }}</span>
+        </li>
         <li v-if="profile.settings">
-          🕘 {{ profile.settings.openingTime }} – {{ profile.settings.closingTime }}
-          · citas de {{ profile.settings.appointmentDuration }} min
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <span>
+            {{ profile.settings.openingTime }} – {{ profile.settings.closingTime }}
+            · citas de {{ profile.settings.appointmentDuration }} min
+          </span>
         </li>
       </ul>
 
@@ -89,12 +103,12 @@ function waLink(phone) {
 .pub {
   max-width: 560px;
   margin: 0 auto;
-  padding: var(--space-7) var(--space-4);
+  padding: clamp(32px, 6vw, 64px) var(--space-4);
   text-align: center;
 }
 
 .pub__state {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .pub__state--error .pub__title {
@@ -106,10 +120,10 @@ function waLink(phone) {
 }
 
 .pub__card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  padding: var(--space-6);
+  padding: clamp(24px, 5vw, 40px);
   box-shadow: var(--shadow-md);
 }
 
@@ -119,23 +133,35 @@ function waLink(phone) {
   border-radius: 50%;
   object-fit: cover;
   margin: 0 auto var(--space-4);
-  border: 2px solid var(--color-primary);
+  border: 3px solid var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent-border);
 }
 
 .pub__photo--placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.2rem;
-  background: var(--color-surface-2);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pub__photo--placeholder svg {
+  width: 40px;
+  height: 40px;
 }
 
 .pub__type {
+  display: inline-block;
   font-size: var(--font-size-xs);
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-primary-soft);
-  margin-bottom: var(--space-2);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  margin-bottom: var(--space-3);
 }
 
 .pub__title {
@@ -144,13 +170,13 @@ function waLink(phone) {
 }
 
 .pub__owner {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
   margin-bottom: var(--space-3);
 }
 
 .pub__desc {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-sm);
   margin-bottom: var(--space-5);
 }
@@ -158,9 +184,27 @@ function waLink(phone) {
 .pub__meta {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   font-size: var(--font-size-sm);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-6);
+  text-align: left;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.pub__meta li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-muted);
+}
+
+.pub__meta svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--accent);
 }
 
 .pub__cta {
@@ -174,10 +218,10 @@ function waLink(phone) {
 .pub__brand {
   margin-top: var(--space-5);
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
 .pub__brand a {
-  color: var(--color-primary-soft);
+  color: var(--accent);
 }
 </style>

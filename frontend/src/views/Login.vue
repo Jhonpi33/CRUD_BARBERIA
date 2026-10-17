@@ -3,6 +3,7 @@ import { reactive, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, friendlyAuthError } from '../stores/auth'
 import Button from '../components/Button.vue'
+import PasswordField from '../components/PasswordField.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,14 +50,11 @@ async function onSubmit() {
 
       <label class="form__field">
         <span class="form__label">Contraseña</span>
-        <input
+        <PasswordField
           v-model="form.password"
-          class="form__input"
-          type="password"
           name="password"
           autocomplete="current-password"
           placeholder="••••••••"
-          required
         />
       </label>
 
