@@ -2,12 +2,22 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../services/api'
+import { waMessageLink } from '../utils/whatsapp'
 
 const route = useRoute()
 
 const profile = ref(null)
 const loading = ref(true)
 const error = ref('')
+
+// Mensaje precargado al pulsar "Reservar por WhatsApp".
+function waLinkFor(phone) {
+  const nombre = profile.value?.professionalName || profile.value?.businessName
+  return waMessageLink(
+    phone,
+    `Hola${nombre ? ` ${nombre}` : ''}, quiero reservar una cita. ¿Qué horarios tienes disponibles?`
+  )
+}
 
 onMounted(async () => {
   try {
@@ -20,11 +30,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
-
-function waLink(phone) {
-  const digits = String(phone).replace(/[^\d]/g, '')
-  return digits ? `https://wa.me/${digits}` : null
-}
 </script>
 
 <template>
@@ -85,9 +90,9 @@ function waLink(phone) {
       </RouterLink>
 
       <a
-        v-if="waLink(profile.phone)"
+        v-if="waLinkFor(profile.phone)"
         class="btn btn--secondary pub__cta pub__cta--wa"
-        :href="waLink(profile.phone)"
+        :href="waLinkFor(profile.phone)"
         target="_blank"
         rel="noopener"
       >

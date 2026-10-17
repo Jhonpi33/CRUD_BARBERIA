@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
+import { waShareLink } from '../../utils/whatsapp'
 
 const auth = useAuthStore()
 
@@ -8,6 +9,15 @@ const publicLink = computed(() => {
   const slug = auth.profile?.slug
   return slug ? `${window.location.origin}/u/${slug}` : null
 })
+
+// Enlace para compartir la agenda por WhatsApp (selector de chats).
+const shareWa = computed(() =>
+  waShareLink(
+    publicLink.value
+      ? `Reserva tu cita conmigo en línea: ${publicLink.value}`
+      : ''
+  )
+)
 </script>
 
 <template>
@@ -43,6 +53,15 @@ const publicLink = computed(() => {
         </p>
         <a class="panel-card__link" :href="publicLink" target="_blank" rel="noopener">
           {{ publicLink }}
+        </a>
+        <a
+          v-if="shareWa"
+          class="panel-card__nav"
+          :href="shareWa"
+          target="_blank"
+          rel="noopener"
+        >
+          Compartir por WhatsApp →
         </a>
       </article>
       <article class="panel-card">
