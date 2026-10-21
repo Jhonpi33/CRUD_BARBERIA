@@ -1,5 +1,30 @@
-# Vue 3 + Vite
+# 🪒 CRUD Barbería
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Panel web para administrar una barbería. Permite agendar **citas por barbero con validación de horarios** (sin solapamientos ni citas fuera del horario de atención), registrar **cobros**, llevar un programa de **fidelidad** para clientes frecuentes y ver **estadísticas** del negocio. Todos los datos se guardan en el `localStorage` del navegador, así que no necesita backend.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Stack
+
+- **Vue 3** (`<script setup>`) + **Vite**
+- **SweetAlert2** (modales y confirmaciones)
+- **VueUse** (utilidades reactivas)
+- Estilos con CSS puro dentro del componente principal
+
+## Instalación y ejecución
+
+```bash
+npm install
+npm run dev      # servidor de desarrollo
+npm run build    # build de producción en dist/
+npm run preview  # previsualizar el build
+```
+
+## Despliegue
+
+El proyecto está publicado en GitHub Pages:
+**https://jhonpi33.github.io/CRUD_BARBERIA/**
+
+`vite.config.js` ya configura `base: '/CRUD_BARBERIA/'`, necesario para que los assets carguen bien en Pages. Para republicar después de un cambio:
+
+```bash
+npm run deploy
+```

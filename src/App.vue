@@ -1419,8 +1419,6 @@ contarServiciosDelMes()
   </div>
 </template>
 
-
-```css
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -2444,4 +2442,3 @@ align-items:flex-start;
 }
 }
 </style>
-```
