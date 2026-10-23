@@ -131,7 +131,8 @@ function statusClass(status) {
       <div>
         <h1 class="agenda__title">Mi agenda</h1>
         <p class="agenda__lead">
-          Citas reservadas desde tu enlace público. Confirma, completa o cancela cada cita;
+          Aquí llegan las citas que tus clientes reservaron solos desde tu página.
+          Confirma, completa o cancela cada una;
           los cambios de estado los valida el servidor.
         </p>
       </div>

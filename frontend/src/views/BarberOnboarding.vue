@@ -105,7 +105,7 @@ function payload() {
     </div>
     <h1 class="onboarding__title">Crea tu perfil profesional</h1>
     <p class="onboarding__lead">
-      Esto es lo que verán tus clientes en tu enlace público. Puedes guardarlo a medias y
+      Esto es lo que verán tus clientes en tu página. Puedes guardarlo a medias y
       volver cuando quieras.
     </p>
 
@@ -187,7 +187,7 @@ function payload() {
     </form>
 
     <p v-if="publicLink" class="onboarding__public">
-      Tu enlace público:
+      Tu página:
       <a :href="publicLink" target="_blank" rel="noopener">{{ publicLink }}</a>
     </p>
   </div>
