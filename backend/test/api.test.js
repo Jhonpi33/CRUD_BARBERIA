@@ -6,6 +6,7 @@
   Ejecutar con: npm test
 */
 import './env.js' // DEBE ir primero: fija NODE_ENV antes de cargar la app
+import { futureWeekday } from './env.js'
 
 import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert/strict'
@@ -495,8 +496,8 @@ describe('API de disponibilidad', () => {
     foreignServiceId = f.data.service._id
   })
 
-  const mon = '2026-10-19' // lunes
-  const sun = '2026-10-25' // domingo
+  const mon = futureWeekday(1) // lunes futuro
+  const sun = futureWeekday(0) // domingo futuro
 
   test('día no laborable => cero intervalos', async () => {
     const r = await req('GET', `/api/availability?date=${sun}&serviceId=${serviceId}`, { token })

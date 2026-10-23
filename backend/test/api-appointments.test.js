@@ -6,6 +6,7 @@
   Ejecutar con: npm test
 */
 import './env.js' // DEBE ir primero: fija NODE_ENV antes de cargar la app
+import { futureWeekday } from './env.js'
 
 import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert/strict'
@@ -118,7 +119,7 @@ after(async () => {
 
 describe('Reserva pública (POST /api/public/booking/:slug)', () => {
   let owner
-  const MON = '2026-10-19' // lunes
+  const MON = futureWeekday(1) // lunes futuro
 
   before(async () => {
     owner = await createOwner({ slug: 'dueno-agenda' })
@@ -243,7 +244,7 @@ describe('Reserva pública (POST /api/public/booking/:slug)', () => {
   test('día no laborable => ningún hueco', async () => {
     const r = await req(
       'GET',
-      `/api/public/booking/dueno-agenda/availability?serviceId=${owner.serviceId}&date=2026-10-20`
+      `/api/public/booking/dueno-agenda/availability?serviceId=${owner.serviceId}&date=${futureWeekday(2)}`
     ) // martes
     assert.equal(r.status, 200)
     assert.deepEqual(r.data.slots, [])
@@ -304,7 +305,7 @@ describe('Reserva pública (POST /api/public/booking/:slug)', () => {
 
 describe('Control de concurrencia (el corazón de la Fase 5)', () => {
   let owner
-  const MON = '2026-10-19'
+  const MON = futureWeekday(1)
 
   before(async () => {
     owner = await createOwner({ slug: 'concurrencia' })
@@ -399,7 +400,7 @@ describe('Control de concurrencia (el corazón de la Fase 5)', () => {
 
 describe('Agenda privada (GET /api/appointments)', () => {
   let owner
-  const MON = '2026-10-19'
+  const MON = futureWeekday(1)
 
   before(async () => {
     owner = await createOwner({ slug: 'agenda-privada' })
@@ -503,7 +504,7 @@ describe('Agenda privada (GET /api/appointments)', () => {
 
 describe('Clientes', () => {
   let owner
-  const MON = '2026-10-19'
+  const MON = futureWeekday(1)
 
   before(async () => {
     owner = await createOwner({ slug: 'clientes-agenda' })

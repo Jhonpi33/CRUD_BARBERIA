@@ -6,6 +6,7 @@
   Ejecutar con: npm test
 */
 import './env.js' // DEBE ir primero: fija NODE_ENV antes de cargar la app
+import { futureWeekday } from './env.js'
 
 import { test, describe, before, after, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
@@ -87,7 +88,7 @@ async function createOwner({ slug }) {
   return { token, userId: r.data.user._id, serviceId: svc.data.service._id }
 }
 
-function book(slug, serviceId, { start, name, phone, date = '2026-10-19' }) {
+function book(slug, serviceId, { start, name, phone, date = futureWeekday(1) }) {
   return req('POST', `/api/public/booking/${slug}`, {
     body: { serviceId, date, start, name, phone },
   })
@@ -227,17 +228,25 @@ describe('La reserva pública intenta enviar el correo al dueño', () => {
     const sent = []
     setTransport(fakeTransport(sent))
 
+    // Se fija la fecha UNA sola vez y se usa tanto para reservar como para
+    // verificar el correo: dos llamadas a futureWeekday() podrían caer en
+    // semanas distintas justo en el cambio de semana.
+    const date = futureWeekday(1)
     const r = await book('mail-reserva', owner.serviceId, {
       start: '08:00',
       name: 'Cliente Correo',
       phone: '+57 350 999 8888',
+      date,
     })
     assert.equal(r.status, 201, JSON.stringify(r.data))
 
     assert.equal(sent.length, 1, 'debe enviarse exactamente un correo')
     assert.match(sent[0].subject, /Cliente Correo/)
     assert.ok(sent[0].text.includes('Corte'))
-    assert.ok(sent[0].text.includes('2026-10-19'))
+    assert.ok(
+      sent[0].text.includes(date),
+      `el correo debe incluir la fecha ${date}; texto: ${sent[0].text}`
+    )
     setTransport(null)
   })
 

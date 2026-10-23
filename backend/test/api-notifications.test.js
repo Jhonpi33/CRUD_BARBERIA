@@ -6,6 +6,7 @@
   Ejecutar con: npm test
 */
 import './env.js' // DEBE ir primero: fija NODE_ENV antes de cargar la app
+import { futureWeekday } from './env.js'
 
 import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert/strict'
@@ -86,7 +87,7 @@ async function createOwner({ slug }) {
 }
 
 /** Reserva pública ( devuelve la respuesta cruda ). */
-function book(slug, serviceId, { start, name, phone, date = '2026-10-19' }) {
+function book(slug, serviceId, { start, name, phone, date = futureWeekday(1) }) {
   return req('POST', `/api/public/booking/${slug}`, {
     body: { serviceId, date, start, name, phone },
   })
@@ -111,7 +112,7 @@ after(async () => {
 
 describe('Notificación creada por una reserva pública', () => {
   let owner
-  const MON = '2026-10-19'
+  const MON = futureWeekday(1)
 
   before(async () => {
     owner = await createOwner({ slug: 'notif-creacion' })
@@ -214,7 +215,7 @@ describe('Notificación creada por una reserva pública', () => {
 describe('Aislamiento entre dos propietarios', () => {
   let ownerA
   let ownerB
-  const MON = '2026-10-19'
+  const MON = futureWeekday(1)
   let idDeA
 
   before(async () => {
@@ -299,7 +300,7 @@ describe('Aislamiento entre dos propietarios', () => {
 
 describe('La reserva no depende de la notificación', () => {
   let owner
-  const MON = '2026-10-19'
+  const MON = futureWeekday(1)
 
   before(async () => {
     owner = await createOwner({ slug: 'notif-robusto' })

@@ -9,6 +9,7 @@
 
 import { computeAvailability } from './availability.js'
 import { timeToMinutes } from './scheduleValidation.js'
+import { utcToWallClock } from './timezone.js'
 
 /** Granularidad de agenda (inicio de los intervalos). Distinta de la duración. */
 export const STEP_MINUTES = 15
@@ -22,6 +23,68 @@ function minutesToTime(minutes) {
   const h = String(Math.floor(minutes / 60)).padStart(2, '0')
   const m = String(minutes % 60).padStart(2, '0')
   return `${h}:${m}`
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+
+/** Fecha de calendario 'YYYY-MM-DD' de un instante, en una zona IANA. */
+function calendarDateOf(ms, timeZone) {
+  const w = utcToWallClock(ms, timeZone)
+  return `${w.year}-${pad2(w.month)}-${pad2(w.day)}`
+}
+
+/**
+ * ¿El inicio solicitado ya quedó en el pasado?
+ *
+ * Se compara SIEMPRE en la zona horaria del DUEÑO, no en la del servidor
+ * ni la del cliente: "las 08:00" significan las 08:00 del dueño.
+ * Fecha anterior a hoy => pasado. Mismo día => se compara la hora.
+ *
+ * Pura: `now` se inyecta para poder testear sin depender del reloj.
+ *
+ * @param {object} params
+ * @param {string} params.date      'YYYY-MM-DD' (fecha de calendario)
+ * @param {string} params.start     'HH:MM' (hora de pared del dueño)
+ * @param {string} params.timezone  zona IANA del dueño
+ * @param {Date}   [params.now]     instante de referencia (por defecto, ahora)
+ * @returns {boolean}
+ */
+export function isSlotInPast({ date, start, timezone, now = new Date() }) {
+  // 1) Formato de hora: si no es 'HH:MM' válido, no es reservable de todos modos.
+  const startMinutes = timeToMinutes(start)
+  if (startMinutes === null) return true
+
+  // 2) Fecha de calendario de HOY en la zona del dueño. Las fechas 'YYYY-MM-DD'
+  //    se pueden comparar como texto: el orden lexicográfico coincide con el
+  //    orden de calendario.
+  const today = calendarDateOf(now.getTime(), timezone)
+  if (date < today) return true
+  if (date > today) return false
+
+  // 3) Mismo día: se compara la hora.
+  const w = utcToWallClock(now.getTime(), timezone)
+  const nowMinutes = w.hour * 60 + w.minute
+
+  // Un slot que empieza en este mismo minuto ya no alcanza a atenderse.
+  return startMinutes <= nowMinutes
+}
+
+/**
+ * De una lista de intervalos libres teóricos quita los que ya quedaron en el
+ * pasado respecto de `now` (solo afecta al día de hoy).
+ *
+ * @param {Array<{start:string}>} slots
+ * @param {string} date    'YYYY-MM-DD'
+ * @param {string} timezone zona IANA del dueño
+ * @param {Date} [now]
+ * @returns los slots todavía reservables
+ */
+export function filterPastSlots(slots, date, timezone, now = new Date()) {
+  return (Array.isArray(slots) ? slots : []).filter(
+    (s) => !isSlotInPast({ date, start: s.start, timezone, now })
+  )
 }
 
 /**

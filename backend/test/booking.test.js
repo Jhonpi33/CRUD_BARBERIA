@@ -10,6 +10,8 @@ import {
   computeFreeSlots,
   busyRangeFromAppointment,
   busyRangesFromAppointments,
+  isSlotInPast,
+  filterPastSlots,
 } from '../src/utils/booking.js'
 
 const TZ = 'America/Bogota'
@@ -165,5 +167,123 @@ describe('booking — busyRangeFromAppointment', () => {
       { startMinutes: 600, endMinutes: 630 },
     ])
     assert.equal(ranges.length, 2)
+  })
+})
+
+/*
+  Validación de PASADO: la API de reservas es pública, así que sin esto un
+  POST directo podría agendar para el mes pasado aunque la interfaz no lo
+  ofrezca. Todo se compara en la zona del DUEÑO; `now` se inyecta para que
+  el test no dependa del reloj real.
+*/
+describe('booking — isSlotInPast', () => {
+  // "Ahora" = 2026-10-22 10:30 en Bogotá (UTC-5) => 15:30 UTC.
+  const NOW = new Date('2026-10-22T15:30:00Z')
+
+  test('fecha anterior a hoy => en el pasado', () => {
+    assert.equal(
+      isSlotInPast({ date: '2026-10-21', start: '18:00', timezone: TZ, now: NOW }),
+      true
+    )
+  })
+
+  test('mes pasado => en el pasado', () => {
+    assert.equal(
+      isSlotInPast({ date: '2026-09-01', start: '08:00', timezone: TZ, now: NOW }),
+      true
+    )
+  })
+
+  test('hoy, hora ya pasada => en el pasado', () => {
+    assert.equal(
+      isSlotInPast({ date: '2026-10-22', start: '08:00', timezone: TZ, now: NOW }),
+      true
+    )
+  })
+
+  test('hoy, hora exactamente AHORA => ya no se puede atender', () => {
+    assert.equal(
+      isSlotInPast({ date: '2026-10-22', start: '10:30', timezone: TZ, now: NOW }),
+      true
+    )
+  })
+
+  test('hoy, hora futura => SÍ se puede reservar', () => {
+    assert.equal(
+      isSlotInPast({ date: '2026-10-22', start: '11:00', timezone: TZ, now: NOW }),
+      false
+    )
+  })
+
+  test('fecha futura => SÍ se puede reservar aunque sea temprano', () => {
+    assert.equal(
+      isSlotInPast({ date: '2026-10-23', start: '07:00', timezone: TZ, now: NOW }),
+      false
+    )
+  })
+
+  test('se compara en la zona del DUEÑO, no en la del servidor', () => {
+    // Instante 2026-10-23T04:00Z => en Bogotá (UTC-5) son 22/10 23:00,
+    // pero en Tokio (UTC+9) ya son 23/10 13:00. El "hoy" cambia de zona.
+    const NOW = new Date('2026-10-23T04:00:00Z')
+
+    // Dueño en Bogotá: para él todavía es 22/10 y son las 23:00,
+    // así que una cita el 22/10 a las 23:30 es FUTURA.
+    assert.equal(
+      isSlotInPast({
+        date: '2026-10-22',
+        start: '23:30',
+        timezone: 'America/Bogota',
+        now: NOW,
+      }),
+      false
+    )
+
+    // Mismo instante y misma cita, pero el dueño está en Tokio: allí ya es
+    // 23/10, por lo que esa fecha quedó ATRÁS. El servidor no decide: decide
+    // la zona del dueño.
+    assert.equal(
+      isSlotInPast({
+        date: '2026-10-22',
+        start: '23:30',
+        timezone: 'Asia/Tokyo',
+        now: NOW,
+      }),
+      true
+    )
+  })
+
+  test('formato de hora inválido => tratado como no reservable', () => {
+    assert.equal(
+      isSlotInPast({ date: '2026-10-25', start: '25:99', timezone: TZ, now: NOW }),
+      true
+    )
+  })
+})
+
+describe('booking — filterPastSlots', () => {
+  const NOW = new Date('2026-10-22T15:30:00Z') // 10:30 en Bogotá
+
+  test('quita solo los de hoy que ya pasaron', () => {
+    const slots = [
+      { start: '08:00', end: '08:30' },
+      { start: '10:30', end: '11:00' },
+      { start: '11:00', end: '11:30' },
+    ]
+    const out = filterPastSlots(slots, '2026-10-22', TZ, NOW)
+    assert.deepEqual(out.map((s) => s.start), ['11:00'])
+  })
+
+  test('en una fecha futura no descarta nada', () => {
+    const slots = [
+      { start: '08:00', end: '08:30' },
+      { start: '09:00', end: '09:30' },
+    ]
+    const out = filterPastSlots(slots, '2026-10-25', TZ, NOW)
+    assert.equal(out.length, 2)
+  })
+
+  test('entradas no-array devuelven lista vacía', () => {
+    assert.deepEqual(filterPastSlots(null, '2026-10-25', TZ, NOW), [])
   })
 })

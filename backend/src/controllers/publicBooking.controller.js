@@ -9,7 +9,7 @@ import { Notification } from '../models/Notification.js'
 import { User } from '../models/User.js'
 
 import { computeAvailability, AvailabilityError, isValidDate, dayKeyFromDate } from '../utils/availability.js'
-import { STEP_MINUTES, occupiedSlotKeys, busyRangesFromAppointments } from '../utils/booking.js'
+import { STEP_MINUTES, occupiedSlotKeys, busyRangesFromAppointments, isSlotInPast, filterPastSlots } from '../utils/booking.js'
 import { timeToMinutes } from '../utils/scheduleValidation.js'
 import { wallClockToUtc, utcToWallClock } from '../utils/timezone.js'
 import { sendBookingEmail } from '../utils/mailer.js'
@@ -128,12 +128,16 @@ export async function getPublicAvailability(req, res, next) {
         )
       : theoretical
 
+    // Quita los huecos de HOY que ya quedaron en el pasado: la página solo
+    // debe ofrecer horas a las que todavía se pueda llegar.
+    const reservable = filterPastSlots(free, date, timezone)
+
     res.json({
       date,
       timezone,
       durationMinutes: service.durationMinutes,
       stepMinutes: STEP_MINUTES,
-      slots: free.map((s) => ({ start: s.start, end: s.end })),
+      slots: reservable.map((s) => ({ start: s.start, end: s.end })),
     })
   } catch (err) {
     if (err instanceof AvailabilityError) {
@@ -225,6 +229,17 @@ export async function createPublicBooking(req, res, next) {
       return res.status(409).json({
         code: 'SLOT_UNAVAILABLE',
         message: 'Ese horario ya no está disponible. Elige otro.',
+      })
+    }
+
+    // --- El hueco no puede haber quedado en el pasado ---
+    // La UI solo ofrece fechas futuras, pero la API es PÚBLICA: sin esta
+    // validación, un POST directo podría agendar para el mes pasado.
+    // Se compara en la zona del dueño, no en la del servidor.
+    if (isSlotInPast({ date, start, timezone })) {
+      return res.status(422).json({
+        code: 'SLOT_IN_PAST',
+        message: 'Ese horario ya pasó. Elige una fecha y hora futuras.',
       })
     }
 
