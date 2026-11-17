@@ -79,6 +79,8 @@ npm start --prefix backend
 
 Configura `NODE_ENV=production`, `SERVE_FRONTEND=true`, `REQUIRE_EMAIL_VERIFICATION=true`, `CLIENT_URL` con el origen público HTTPS, `MONGODB_URI`, `JWT_SECRET`, `ADMIN_EMAIL` y las variables del servicio de correo. Usa `/api/health` para comprobar que la API está conectada a MongoDB. Las credenciales se guardan en la configuración privada del hosting.
 
+También puedes compilar la imagen con `docker build -t elysia .` desde la raíz. El contenedor sirve la web y la API por el puerto 8080. Para un servicio administrado, selecciona el `Dockerfile` de la raíz, configura `/api/health` como comprobación HTTP y guarda las variables de producción en el panel del proveedor.
+
 Antes de publicar, prueba el registro con entrega de correo y confirma una reserva desde el enlace de un perfil. Publica los cambios mediante pull requests hacia `main` y despliega esa rama después de verificar la versión.
 
 ## Convenciones
