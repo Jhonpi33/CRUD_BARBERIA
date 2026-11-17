@@ -30,10 +30,10 @@ const VALID_TRANSITIONS = {
 
 /** Acciones mostradas por transición, con su etiqueta e icono. */
 export const STATUS_ACTIONS = {
-  confirmed: { label: 'Confirmar', icon: '✓' },
-  completed: { label: 'Completar', icon: '✅' },
-  cancelled: { label: 'Cancelar', icon: '✕' },
-  no_show: { label: 'Inasistencia', icon: '⚠' },
+  confirmed: { label: 'Confirmar', icon: 'check' },
+  completed: { label: 'Completar', icon: 'check-circle' },
+  cancelled: { label: 'Cancelar', icon: 'x' },
+  no_show: { label: 'Inasistencia', icon: 'alert' },
 }
 
 export function allowedTransitions(status) {

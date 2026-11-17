@@ -53,6 +53,11 @@ router.post(
     body('start').isString().withMessage('La hora es obligatoria'),
     body('name').isString().withMessage('El nombre es obligatorio'),
     body('phone').isString().withMessage('El teléfono es obligatorio'),
+    body('whatsappOptIn')
+      .optional()
+      .isBoolean()
+      .withMessage('La autorización de WhatsApp no es válida')
+      .toBoolean(),
   ]),
   createPublicBooking
 )

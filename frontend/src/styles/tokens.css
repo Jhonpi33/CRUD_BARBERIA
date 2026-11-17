@@ -60,6 +60,9 @@
   --radius-lg: 18px;
   --radius-full: 999px;
 
+  /* ----- Superposición (modales, menús flotantes) ----- */
+  --overlay: rgba(15, 23, 42, 0.55);
+
   /* ----- Sombras (tinta sobre fondo claro) ----- */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.08);

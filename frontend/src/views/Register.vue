@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore, friendlyAuthError } from '../stores/auth'
 import Button from '../components/Button.vue'
 import PasswordField from '../components/PasswordField.vue'
+import HelpAssistant from '../components/HelpAssistant.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -21,11 +22,19 @@ async function onSubmit() {
 
   try {
     // El rol NO se envía aquí: el backend lo deja pendiente y se elige en /seleccionar-rol.
-    await auth.register({
+    const { verification } = await auth.register({
       name: form.name,
       email: form.email,
       password: form.password,
     })
+
+    // Validación de correo activa: la cuenta existe pero todavía no hay
+    // sesión; toca entrar el código de 6 dígitos.
+    if (verification) {
+      router.push({ path: '/verificar-correo', query: { email: verification.email } })
+      return
+    }
+
     router.push('/seleccionar-rol')
   } catch (err) {
     error.value = friendlyAuthError(err)
@@ -36,7 +45,9 @@ async function onSubmit() {
 <template>
   <div class="auth-form">
     <h1 class="auth-form__title">Crear cuenta</h1>
-    <p class="auth-form__lead">Empieza gratis, sin tarjeta de crédito.</p>
+    <p class="auth-form__lead">
+      Configura tu perfil y empieza a organizar tus citas en Elysia.
+    </p>
 
     <form class="form" novalidate @submit.prevent="onSubmit">
       <label class="form__field">
@@ -95,6 +106,8 @@ async function onSubmit() {
         {{ auth.loading ? 'Creando cuenta…' : 'Crear cuenta' }}
       </Button>
     </form>
+
+    <HelpAssistant compact />
 
     <p class="auth-form__link">
       ¿Ya tienes cuenta?

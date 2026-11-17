@@ -2,10 +2,14 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, friendlyAuthError } from '../stores/auth'
+import { useToastsStore } from '../stores/toasts'
 import Button from '../components/Button.vue'
+import Icon from '../components/Icon.vue'
+import api from '../services/api'
 
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToastsStore()
 
 const form = reactive({
   professionalName: '',
@@ -13,20 +17,30 @@ const form = reactive({
   description: '',
   phone: '',
   location: '',
+  whatsappNotificationsEnabled: false,
 })
 
 const errors = ref({})
 const notice = ref('')
 const loading = ref(true)
+const whatsappChannels = ref({ configured: false, barberAlerts: false })
 
 const publicLink = computed(() => {
   const slug = auth.profile?.slug
   return slug ? `${window.location.origin}/u/${slug}` : null
 })
 
+const isEditing = computed(() => Boolean(auth.profile?.completedAt))
+
 /** Carga el perfil existente desde MongoDB para retomar el onboarding. */
 onMounted(async () => {
   if (!auth.profile) await auth.fetchProfile()
+  try {
+    const { data } = await api.get('/whatsapp/status')
+    whatsappChannels.value = data.channels
+  } catch {
+    // El perfil sigue disponible aunque no se pueda consultar el canal.
+  }
   const p = auth.profile
   if (p) {
     form.professionalName = p.professionalName || ''
@@ -34,6 +48,7 @@ onMounted(async () => {
     form.description = p.description || ''
     form.phone = p.phone || ''
     form.location = p.location || ''
+    form.whatsappNotificationsEnabled = p.whatsappNotificationsEnabled === true
   }
   loading.value = false
 })
@@ -73,6 +88,10 @@ async function onFinish() {
   try {
     await auth.saveProfile(payload())
     await auth.completeProfile()
+    toast.success(
+      isEditing.value ? 'Perfil actualizado' : 'Perfil activado',
+      'Tus cambios ya se reflejan en tu perfil público.'
+    )
     router.push(auth.panelPath)
   } catch (err) {
     errors.value._form = friendlyAuthError(err)
@@ -86,27 +105,47 @@ function payload() {
     description: form.description.trim(),
     phone: form.phone.trim(),
     location: form.location.trim(),
+    whatsappNotificationsEnabled: form.whatsappNotificationsEnabled,
   }
 }
 </script>
 
 <template>
   <div class="onboarding">
-    <p class="onboarding__step">Paso 1 de 1 · Perfil de barbero</p>
-    <div
-      class="onboarding__progress"
-      role="progressbar"
-      aria-valuenow="1"
-      aria-valuemin="1"
-      aria-valuemax="1"
-      aria-label="Progreso del formulario"
-    >
-      <span class="onboarding__progress-bar" style="width: 100%"></span>
+    <!-- Siempre hay salida: al panel si ya existe el perfil, al inicio si lo está creando -->
+    <div class="onboarding__nav-top">
+      <RouterLink
+        class="btn btn--secondary btn--sm"
+        :to="isEditing ? '/panel/barbero' : '/'"
+      >
+        <Icon name="arrow-left" :size="16" />
+        {{ isEditing ? 'Volver al panel' : 'Volver al inicio' }}
+      </RouterLink>
     </div>
-    <h1 class="onboarding__title">Crea tu perfil profesional</h1>
+
+    <template v-if="!isEditing">
+      <p class="onboarding__step">Paso 1 de 1 · Perfil de barbero</p>
+      <div
+        class="onboarding__progress"
+        role="progressbar"
+        aria-valuenow="1"
+        aria-valuemin="1"
+        aria-valuemax="1"
+        aria-label="Progreso del formulario"
+      >
+        <span class="onboarding__progress-bar" style="width: 100%"></span>
+      </div>
+    </template>
+
+    <h1 class="onboarding__title">
+      {{ isEditing ? 'Editar mi perfil profesional' : 'Crea tu perfil profesional' }}
+    </h1>
     <p class="onboarding__lead">
-      Esto es lo que verán tus clientes en tu página. Puedes guardarlo a medias y
-      volver cuando quieras.
+      {{
+        isEditing
+          ? 'Actualiza los datos que verán tus clientes en tu perfil público.'
+          : 'Esto es lo que verán tus clientes en tu perfil público. Puedes guardarlo a medias y volver cuando quieras.'
+      }}
     </p>
 
     <div v-if="loading" class="onboarding__loading">Cargando tu perfil…</div>
@@ -150,7 +189,7 @@ function payload() {
       </label>
 
       <label class="form__field">
-        <span class="form__label">Teléfono *</span>
+        <span class="form__label">Teléfono / WhatsApp *</span>
         <input
           v-model="form.phone"
           class="form__input"
@@ -158,6 +197,7 @@ function payload() {
           placeholder="Ej. 300 123 4567"
           maxlength="30"
         />
+        <span class="form__hint">Escribe tu número con indicativo de país si no es colombiano.</span>
         <span v-if="errors.phone" class="form__error">{{ errors.phone }}</span>
       </label>
 
@@ -173,21 +213,36 @@ function payload() {
         <span v-if="errors.location" class="form__error">{{ errors.location }}</span>
       </label>
 
+      <label class="onboarding__whatsapp">
+        <input v-model="form.whatsappNotificationsEnabled" type="checkbox" />
+        <span>
+          <strong>Recibir avisos de reservas por WhatsApp</strong>
+          <small v-if="whatsappChannels.barberAlerts">Usaremos el teléfono de WhatsApp de tu perfil para avisarte cuando llegue una reserva.</small>
+          <small v-else>La conexión automática de WhatsApp aún no está lista. Puedes dejar activada esta preferencia para cuando se configure.</small>
+        </span>
+      </label>
+
       <p v-if="errors._form" class="form__error" role="alert">{{ errors._form }}</p>
       <p v-if="notice" class="form__info" role="status">{{ notice }}</p>
 
       <div class="onboarding__actions">
-        <Button type="button" variant="secondary" :disabled="auth.loading" @click="onSaveDraft">
+        <Button
+          v-if="!isEditing"
+          type="button"
+          variant="secondary"
+          :disabled="auth.loading"
+          @click="onSaveDraft"
+        >
           Guardar borrador
         </Button>
         <Button type="submit" variant="primary" :disabled="auth.loading">
-          {{ auth.loading ? 'Guardando…' : 'Terminar y entrar a mi panel' }}
+          {{ auth.loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Terminar y entrar a mi panel' }}
         </Button>
       </div>
     </form>
 
     <p v-if="publicLink" class="onboarding__public">
-      Tu página:
+      Tu perfil público:
       <a :href="publicLink" target="_blank" rel="noopener">{{ publicLink }}</a>
     </p>
   </div>
@@ -196,6 +251,10 @@ function payload() {
 <style scoped>
 .onboarding {
   text-align: left;
+}
+
+.onboarding__nav-top {
+  margin-bottom: var(--space-4);
 }
 
 .onboarding__step {
@@ -243,6 +302,21 @@ function payload() {
   color: var(--text-muted);
   padding: var(--space-6) 0;
 }
+
+.onboarding__whatsapp {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.onboarding__whatsapp input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+.onboarding__whatsapp span { display: grid; gap: 4px; }
+.onboarding__whatsapp strong { font-size: var(--font-size-sm); }
+.onboarding__whatsapp small { color: var(--text-muted); font-size: var(--font-size-xs); }
 
 .onboarding__actions {
   display: flex;

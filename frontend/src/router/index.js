@@ -15,6 +15,7 @@ import PublicBooking from '../views/PublicBooking.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import RecoverPassword from '../views/RecoverPassword.vue'
+import VerifyEmail from '../views/VerifyEmail.vue'
 import SelectRole from '../views/SelectRole.vue'
 import BarberOnboarding from '../views/BarberOnboarding.vue'
 import BarbershopOnboarding from '../views/BarbershopOnboarding.vue'
@@ -25,6 +26,10 @@ import AdminPanel from '../views/panels/AdminPanel.vue'
 import Services from '../views/panels/Services.vue'
 import Schedule from '../views/panels/Schedule.vue'
 import Agenda from '../views/panels/Agenda.vue'
+import Clients from '../views/panels/Clients.vue'
+import ClientDetail from '../views/panels/ClientDetail.vue'
+import Cash from '../views/panels/Cash.vue'
+import HelpAssistant from '../components/HelpAssistant.vue'
 
 const routes = [
   // ---------- Áreas públicas ----------
@@ -38,7 +43,13 @@ const routes = [
       { path: 'legal/:doc?', name: 'legal', component: Legal },
       { path: 'u/:slug', name: 'public-profile', component: PublicProfile },
       // Reserva pública (Fase 5): sin cuenta, la autorización vive en backend.
-      { path: 'u/:slug/reservar', name: 'public-booking', component: PublicBooking },
+      // chromeless: es una página del CLIENTE, sin menú de marketing ni footer.
+      {
+        path: 'u/:slug/reservar',
+        name: 'public-booking',
+        component: PublicBooking,
+        meta: { chromeless: true },
+      },
     ],
   },
 
@@ -50,6 +61,8 @@ const routes = [
     children: [
       { path: 'login', name: 'login', component: Login },
       { path: 'registro', alias: 'register', name: 'register', component: Register },
+      // Validación de correo: código de 6 dígitos (todavía no hay sesión).
+      { path: 'verificar-correo', name: 'verify-email', component: VerifyEmail },
       { path: 'recuperar-contrasena', name: 'recover-password', component: RecoverPassword },
     ],
   },
@@ -104,6 +117,27 @@ const routes = [
         meta: { roles: ['barber'] },
       },
       {
+        // Clientes: nacen solos con cada reserva pública; aquí solo se leen.
+        path: 'barbero/clientes',
+        name: 'clients',
+        component: Clients,
+        meta: { roles: ['barber'] },
+      },
+      {
+        path: 'barbero/clientes/:id',
+        name: 'client-detail',
+        component: ClientDetail,
+        meta: { roles: ['barber'] },
+      },
+      {
+        // Caja: sesión con apertura/cierre, ingresos, egresos y cuadre.
+        path: 'barbero/caja',
+        name: 'cash',
+        component: Cash,
+        meta: { roles: ['barber'] },
+      },
+      { path: 'barbero/agente', name: 'barber-help-assistant', component: HelpAssistant, meta: { roles: ['barber'] } },
+      {
         path: 'barberia',
         name: 'barbershop-panel',
         component: BarbershopPanel,
@@ -127,6 +161,14 @@ const routes = [
         component: Agenda,
         meta: { roles: ['barbershop_owner'] },
       },
+      {
+        // Caja también disponible para el dueño de la barbería.
+        path: 'barberia/caja',
+        name: 'barbershop-cash',
+        component: Cash,
+        meta: { roles: ['barbershop_owner'] },
+      },
+      { path: 'barberia/agente', name: 'barbershop-help-assistant', component: HelpAssistant, meta: { roles: ['barbershop_owner'] } },
       {
         path: 'empleado',
         name: 'employee-panel',

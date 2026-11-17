@@ -1,12 +1,15 @@
 <script setup>
 import { reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore, friendlyAuthError } from '../stores/auth'
 import Button from '../components/Button.vue'
 
 const auth = useAuthStore()
+const route = useRoute()
 
-const step = ref(1) // 1: pedir correo · 2: token + nueva contraseña
-const form = reactive({ email: '', token: '', password: '' })
+const initialToken = typeof route.query.token === 'string' ? route.query.token : ''
+const step = ref(initialToken ? 2 : 1) // 1: pedir correo · 2: token + nueva contraseña
+const form = reactive({ email: '', token: initialToken, password: '' })
 const info = ref('')
 const devToken = ref('')
 const error = ref('')
@@ -72,11 +75,14 @@ async function onResetPassword() {
 
     <!-- Paso 2: token + nueva contraseña -->
     <form v-else-if="step === 2" class="form" novalidate @submit.prevent="onResetPassword">
-      <p v-if="devToken" class="form__info">
-        Modo desarrollo: el token es <code>{{ devToken }}</code>. En producción llegaría por correo.
+      <p v-if="route.query.token" class="form__info">
+        Crea una contraseña nueva para recuperar el acceso a tu cuenta.
+      </p>
+      <p v-else-if="devToken" class="form__info">
+        Modo desarrollo: token de prueba <code>{{ devToken }}</code>.
       </p>
 
-      <label class="form__field">
+      <label v-if="!route.query.token && !devToken" class="form__field">
         <span class="form__label">Token de recuperación</span>
         <input
           v-model.trim="form.token"

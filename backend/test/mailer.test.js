@@ -16,7 +16,11 @@ import app from '../src/app.js'
 import { Profile } from '../src/models/Profile.js'
 import { Notification } from '../src/models/Notification.js'
 import { isEnabled, setTransport, sendMail } from '../src/config/mailer.js'
-import { sendBookingEmail } from '../src/utils/mailer.js'
+import {
+  sendAccountCreatedEmail,
+  sendAdminNewAccountEmail,
+  sendBookingEmail,
+} from '../src/utils/mailer.js'
 
 let server
 let base
@@ -169,6 +173,36 @@ describe('Correo desactivado cuando faltan las variables SMTP', () => {
 })
 
 /* ======================= ENVÍO CON TRANSPORTE ======================= */
+
+describe('Correos al registrar una cuenta', () => {
+  test('confirma la cuenta al usuario y avisa al administrador', async () => {
+    const sent = []
+    setTransport(fakeTransport(sent))
+
+    const userNotice = await sendAccountCreatedEmail({
+      to: 'barbero@test.com',
+      name: 'Barbero Piloto',
+      requiresVerification: true,
+    })
+    const adminNotice = await sendAdminNewAccountEmail({
+      to: 'admin@test.com',
+      accountName: 'Barbero Piloto',
+      accountEmail: 'barbero@test.com',
+      requiresVerification: true,
+    })
+
+    assert.equal(userNotice.sent, true)
+    assert.equal(adminNotice.sent, true)
+    assert.equal(sent.length, 2)
+    assert.equal(sent[0].to, 'barbero@test.com')
+    assert.match(sent[0].subject, /cuenta de Elysia fue creada/i)
+    assert.ok(sent[0].text.includes('verifica tu correo'))
+    assert.equal(sent[1].to, 'admin@test.com')
+    assert.ok(sent[1].text.includes('barbero@test.com'))
+    assert.ok(sent[1].text.includes('pendiente'))
+    setTransport(null)
+  })
+})
 
 describe('sendBookingEmail con transporte inyectado', () => {
   test('compone asunto y cuerpo con cliente, servicio, fecha y precio COP', async () => {

@@ -63,6 +63,18 @@ after(async () => {
   await mongoose.disconnect()
 })
 
+describe('Estado de la API', () => {
+  test('health indica que API y MongoDB están conectados', async () => {
+    const r = await req('GET', '/api/health')
+    assert.equal(r.status, 200)
+    assert.deepEqual(r.data, {
+      status: 'ok',
+      service: 'elysia-api',
+      database: 'connected',
+    })
+  })
+})
+
 /* ============================== SERVICIOS ============================== */
 
 describe('API de servicios', () => {
@@ -253,6 +265,28 @@ describe('API de servicios', () => {
 
     const r = await req('GET', '/api/services', { token: adminToken })
     assert.equal(r.status, 403)
+  })
+
+  test('solo admin puede consultar cuentas y el listado no expone hashes', async () => {
+    const { token: adminToken, userId } = await registerUser()
+    const { User } = await import('../src/models/User.js')
+    await User.findByIdAndUpdate(userId, { role: 'admin', emailVerifiedAt: new Date() })
+
+    const adminResponse = await req('GET', '/api/admin/users', { token: adminToken })
+    assert.equal(adminResponse.status, 200, JSON.stringify(adminResponse.data))
+    assert.ok(adminResponse.data.total >= 1)
+    const listedAdmin = adminResponse.data.users.find((user) => user.id === userId)
+    assert.ok(listedAdmin)
+    assert.equal(listedAdmin.role, 'admin')
+    assert.equal(listedAdmin.emailVerified, true)
+    assert.equal(listedAdmin.passwordHash, undefined)
+
+    const { token: barberToken } = await registerUser('barber')
+    const forbidden = await req('GET', '/api/admin/users', { token: barberToken })
+    assert.equal(forbidden.status, 403)
+
+    const unauthorized = await req('GET', '/api/admin/users')
+    assert.equal(unauthorized.status, 401)
   })
 
   test('sin autenticación => 401', async () => {

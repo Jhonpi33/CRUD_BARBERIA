@@ -166,6 +166,13 @@
   color: var(--text);
 }
 
+/* Ayuda breve bajo un campo: acompaña a la etiqueta; el error va aparte. */
+.form__hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-faint);
+  line-height: 1.35;
+}
+
 .input,
 .form__input {
   width: 100%;
@@ -428,8 +435,12 @@
 }
 
 .alert--success::before {
-  content: '✓';
-  color: var(--success);
+  content: '';
+  width: 1.05em;
+  height: 1.05em;
+  background-color: var(--success);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .alert--warning {
@@ -448,8 +459,12 @@
 }
 
 .alert--danger::before {
-  content: '✕';
-  color: var(--danger);
+  content: '';
+  width: 1.05em;
+  height: 1.05em;
+  background-color: var(--danger);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .alert--info {

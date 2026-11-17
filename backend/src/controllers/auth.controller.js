@@ -2,9 +2,37 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
 import { User, SELF_ASSIGNABLE_ROLES } from '../models/User.js'
+import {
+  sendAccountCreatedEmail,
+  sendAdminNewAccountEmail,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from '../utils/mailer.js'
+import {
+  verificationEnabled,
+  generateCode,
+  hashCode,
+  codesMatch,
+  CODE_TTL_MS,
+  CODE_LENGTH,
+  MAX_ATTEMPTS,
+} from '../utils/emailVerification.js'
 
 const BCRYPT_ROUNDS = 12
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000 // coherente con el modelo
+const CODE_TTL_SECONDS = Math.round(CODE_TTL_MS / 1000)
+
+/** ¿La cuenta está esperando el código? (null = pendiente, undefined = anterior a la validación) */
+function isPendingVerification(user) {
+  return user?.emailVerifiedAt === null
+}
+
+/** Borra el código vigente (tras verificarlo, vencido o por intentos agotados). */
+function clearVerificationCode(user) {
+  user.emailVerificationCodeHash = undefined
+  user.emailVerificationExpires = undefined
+  user.emailVerificationAttempts = 0
+}
 
 function signToken(userId) {
   return jwt.sign({ sub: String(userId) }, process.env.JWT_SECRET, {
@@ -16,9 +44,69 @@ function publicUser(user) {
   return user.toJSON()
 }
 
+/** Genera un código nuevo, lo guarda hasheado y lo devuelve en claro. */
+async function issueVerificationCode(user) {
+  const code = generateCode()
+  user.emailVerificationCodeHash = hashCode(user.email, code)
+  user.emailVerificationExpires = new Date(Date.now() + CODE_TTL_MS)
+  user.emailVerificationAttempts = 0
+  await user.save({ validateModifiedOnly: true })
+  return code
+}
+
+async function notifyNewAccount(user, requiresVerification) {
+  const results = await Promise.all([
+    sendAccountCreatedEmail({
+      to: user.email,
+      name: user.name,
+      requiresVerification,
+    }),
+    sendAdminNewAccountEmail({
+      to: process.env.ADMIN_EMAIL,
+      accountName: user.name,
+      accountEmail: user.email,
+      requiresVerification,
+    }),
+  ])
+
+  for (const result of results) {
+    if (!result.sent && !result.skipped) {
+      console.error('[registro] no se pudo enviar un aviso de cuenta nueva:', result.error?.code || 'error SMTP')
+    }
+  }
+}
+
+/**
+ * En producción la cuenta permanece pendiente si el correo falla. En desarrollo
+ * se devuelve el código para que el equipo pueda probar sin SMTP.
+ */
+async function resolveUnsentCode(user, code, res) {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(503).json({
+      message: 'No pudimos enviar el código de verificación. Intenta de nuevo en unos minutos.',
+    })
+  }
+
+  return res.status(201).json({
+    verification: {
+      email: user.email,
+      sent: false,
+      devCode: code,
+      expiresInSeconds: CODE_TTL_SECONDS,
+      message: 'No se pudo enviar el correo. En desarrollo puedes usar este código.',
+    },
+    user: publicUser(user),
+  })
+}
+
 /**
  * POST /api/auth/register
  * El rol NUNCA se acepta aquí: queda en null hasta PATCH /api/auth/role.
+ *
+ * Con la validación de correo obligada, la cuenta nace PENDIENTE
+ * (`emailVerifiedAt = null`), se envía un código de 6 dígitos y NO se
+ * devuelve token: lo entrega /api/auth/verify-email. Sin validación activa,
+ * responde igual que siempre (token inmediato).
  */
 export async function register(req, res, next) {
   try {
@@ -30,9 +118,43 @@ export async function register(req, res, next) {
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
-    const user = await User.create({ name, email, passwordHash })
+    const mustVerify = verificationEnabled()
+    const user = await User.create({
+      name,
+      email,
+      passwordHash,
+      // null = pendiente de verificar; sin validación => cuenta ya válida.
+      emailVerifiedAt: mustVerify ? null : new Date(),
+    })
 
-    res.status(201).json({ token: signToken(user._id), user: publicUser(user) })
+    if (!mustVerify) {
+      await notifyNewAccount(user, false)
+      return res.status(201).json({ token: signToken(user._id), user: publicUser(user) })
+    }
+
+    const code = await issueVerificationCode(user)
+    const [mail] = await Promise.all([
+      sendVerificationEmail({
+        to: user.email,
+        name: user.name,
+        code,
+        minutes: Math.round(CODE_TTL_MS / 60000),
+      }),
+      notifyNewAccount(user, true),
+    ])
+
+    if (mail.sent) {
+      return res.status(201).json({
+        verification: {
+          email: user.email,
+          sent: true,
+          expiresInSeconds: CODE_TTL_SECONDS,
+        },
+        user: publicUser(user),
+      })
+    }
+
+    return resolveUnsentCode(user, code, res)
   } catch (err) {
     next(err)
   }
@@ -50,7 +172,136 @@ export async function login(req, res, next) {
       return res.status(401).json({ message: 'Credenciales inválidas' })
     }
 
+    // Solo se avisa de la cuenta sin verificar DESPUÉS de validar la
+    // contraseña: así no se revela si el correo existe.
+    if (isPendingVerification(user)) {
+      return res.status(403).json({
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Tu correo aún no está verificado. Revisa tu bandeja o pide un código nuevo.',
+        email: user.email,
+      })
+    }
+
     res.json({ token: signToken(user._id), user: publicUser(user) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * POST /api/auth/verify-email — { email, code }
+ * Comprueba el código de 6 dígitos y entrega el token.
+ * Todos los fallos responden igual (400 genérico) para no filtrar si existe
+ * la cuenta ni si el código está cerca.
+ */
+export async function verifyEmail(req, res, next) {
+  try {
+    const { email, code } = req.body
+
+    const invalid = (message) =>
+      res.status(400).json({ code: 'CODE_INVALID', message })
+
+    const user = await User.findOne({ email })
+      .select(
+        '+emailVerificationCodeHash +emailVerificationExpires +emailVerificationAttempts'
+      )
+    if (!user || !isPendingVerification(user) || !user.emailVerificationCodeHash) {
+      return invalid('El código no es válido o ya expiró. Pide uno nuevo.')
+    }
+
+    if (
+      !user.emailVerificationExpires ||
+      user.emailVerificationExpires.getTime() < Date.now()
+    ) {
+      clearVerificationCode(user)
+      await user.save({ validateModifiedOnly: true })
+      return invalid('El código expiró. Pide uno nuevo.')
+    }
+
+    const attempts = user.emailVerificationAttempts || 0
+    if (attempts >= MAX_ATTEMPTS) {
+      clearVerificationCode(user)
+      await user.save({ validateModifiedOnly: true })
+      return invalid('Demasiados intentos. Pide un código nuevo.')
+    }
+
+    const match = codesMatch(
+      user.emailVerificationCodeHash,
+      hashCode(user.email, code)
+    )
+
+    if (!match) {
+      user.emailVerificationAttempts = attempts + 1
+      const exhausted = user.emailVerificationAttempts >= MAX_ATTEMPTS
+      if (exhausted) clearVerificationCode(user)
+      await user.save({ validateModifiedOnly: true })
+      return invalid(
+        exhausted
+          ? 'Demasiados intentos. Pide un código nuevo.'
+          : `Código incorrecto. Te quedan ${
+              MAX_ATTEMPTS - user.emailVerificationAttempts
+            } intentos.`
+      )
+    }
+
+    user.emailVerifiedAt = new Date()
+    clearVerificationCode(user)
+    await user.save({ validateModifiedOnly: true })
+
+    res.json({
+      token: signToken(user._id),
+      user: publicUser(user),
+      message: 'Correo verificado',
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * POST /api/auth/resend-verification — { email }
+ * Emite un código nuevo (el anterior deja de servir). La respuesta es la
+ * MISMA exista o no la cuenta: no se revela quién está registrado.
+ */
+export async function resendVerification(req, res, next) {
+  try {
+    const { email } = req.body
+    const response = {
+      message:
+        'Si el correo está registrado y falta verificarlo, te enviamos un código nuevo.',
+    }
+
+    const user = await User.findOne({ email })
+    if (user && isPendingVerification(user)) {
+      const code = await issueVerificationCode(user)
+      const mail = await sendVerificationEmail({
+        to: user.email,
+        name: user.name,
+        code,
+        minutes: Math.round(CODE_TTL_MS / 60000),
+      })
+
+      if (mail.sent) {
+        response.verification = {
+          email: user.email,
+          sent: true,
+          expiresInSeconds: CODE_TTL_SECONDS,
+        }
+      } else if (process.env.NODE_ENV !== 'production') {
+        // Mismo criterio que en el registro: fuera de producción se entrega
+        // el código en la respuesta para no bloquear el desarrollo.
+        response.verification = {
+          email: user.email,
+          sent: false,
+          devCode: code,
+          expiresInSeconds: CODE_TTL_SECONDS,
+        }
+      } else {
+        console.error('[verificacion] no se pudo reenviar el código:', mail.error?.code || mail.reason || 'error SMTP')
+      }
+    }
+
+    res.json(response)
   } catch (err) {
     next(err)
   }
@@ -59,6 +310,23 @@ export async function login(req, res, next) {
 /** GET /api/auth/me — perfil del usuario del token. */
 export async function me(req, res) {
   res.json({ user: publicUser(req.user) })
+}
+
+/**
+ * PATCH /api/auth/me
+ * Actualiza nombre y/o teléfono de la propia cuenta. El teléfono es opcional
+ * (se puede borrar mandando ""), y es la llave con la que una cuenta `client`
+ * encuentra sus citas hechas sin cuenta.
+ */
+export async function updateMe(req, res, next) {
+  try {
+    if (req.body.name !== undefined) req.user.name = req.body.name
+    if (req.body.phone !== undefined) req.user.phone = req.body.phone
+    await req.user.save()
+    res.json({ user: publicUser(req.user) })
+  } catch (err) {
+    next(err)
+  }
 }
 
 /**
@@ -90,7 +358,8 @@ export async function setOwnRole(req, res, next) {
 
 /**
  * POST /api/auth/forgot-password
- * Sin servicio de correo todavía: en desarrollo se devuelve el token en la respuesta.
+ * En producción el enlace solo se entrega por correo. En desarrollo, si el
+ * correo no está disponible, se devuelve el token para poder probar el flujo.
  */
 export async function forgotPassword(req, res, next) {
   try {
@@ -104,9 +373,20 @@ export async function forgotPassword(req, res, next) {
       const rawToken = user.createPasswordResetToken()
       await user.save({ validateModifiedOnly: true })
 
-      if (process.env.NODE_ENV !== 'production') {
-        // Temporal: quitar cuando se integre el envío de correos.
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
+      const resetUrl = new URL('/recuperar-contrasena', clientUrl)
+      resetUrl.searchParams.set('token', rawToken)
+      const mail = await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl: resetUrl.toString(),
+        minutes: RESET_TOKEN_TTL_MS / 60000,
+      })
+
+      if (!mail.sent && process.env.NODE_ENV !== 'production') {
         response.devToken = rawToken
+      } else if (!mail.sent) {
+        console.error('[password-reset] no se pudo enviar el correo:', mail.error?.code || mail.reason || 'error SMTP')
       }
     }
 

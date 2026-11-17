@@ -1,7 +1,10 @@
 import mongoose from 'mongoose'
 
 import { Appointment } from '../models/Appointment.js'
+import { CashMovement } from '../models/CashMovement.js'
+import { Client } from '../models/Client.js'
 import { transition, AppointmentError, APPOINTMENT_STATUSES } from '../utils/appointmentStatus.js'
+import { queueAppointmentStatusWhatsApp } from '../services/whatsappCloud.js'
 
 /** ¿Tiene formato de ObjectId? */
 function isValidId(id) {
@@ -9,10 +12,38 @@ function isValidId(id) {
 }
 
 /**
+ * Extras que la Agenda pinta en cada tarjeta y que también deben viajar en
+ * las respuestas de detalle/cambio de estado (si no, al cambiar el estado la
+ * vista perdería la ficha y el indicador de cobro):
+ * - `clientNotes`: ficha técnica privada del cliente.
+ * - `paid`: true si esa cita ya tiene un cobro en caja.
+ */
+async function withAppointmentExtras(appointment, ownerId) {
+  const [client, paidMovement] = await Promise.all([
+    Client.findById(appointment.client).select('notes').lean(),
+    CashMovement.findOne({ owner: ownerId, appointment: appointment._id })
+      .select('amount')
+      .lean(),
+  ])
+  const plain = typeof appointment.toObject === 'function' ? appointment.toObject() : appointment
+  return {
+    ...plain,
+    clientNotes: client?.notes || '',
+    paid: Boolean(paidMovement),
+  }
+}
+
+/**
  * GET /api/appointments?from=YYYY-MM-DD&to=YYYY-MM-DD
  * Lista las citas del dueño autenticado en un rango de fechas (agenda
  * diaria o semanal). Si no se envía rango, devuelve las de hoy.
  * El filtro SIEMPRE es por el _id del token: nunca por un id del cliente.
+ *
+ * A cada cita se le añaden dos campos de conveniencia para la Agenda:
+ * - `clientNotes`: ficha técnica privada del cliente (para verla al
+ *   abrir la cita antes de cortar). Solo existe en esta respuesta
+ *   privada; el perfil público nunca la expone.
+ * - `paid`: true si esa cita ya tiene un cobro registrado en caja.
  */
 export async function listAppointments(req, res, next) {
   try {
@@ -32,9 +63,32 @@ export async function listAppointments(req, res, next) {
     const appointments = await Appointment.find({
       owner: req.user._id,
       date: { $gte: from, $lte: to },
-    }).sort({ startUtc: 1 })
+    })
+      .sort({ startUtc: 1 })
+      .populate('client', 'notes')
+      .lean()
 
-    res.json({ appointments, from, to })
+    // ¿Qué citas de este rango ya fueron cobradas en caja?
+    const paidMovements = await CashMovement.find({
+      owner: req.user._id,
+      appointment: { $in: appointments.map((a) => a._id) },
+    })
+      .select('appointment amount')
+      .lean()
+    const paidByAppointment = new Map(
+      paidMovements.map((m) => [String(m.appointment), m.amount])
+    )
+
+    const items = appointments.map((a) => ({
+      ...a,
+      // populate deja el cliente como objeto { _id, notes }; se conserva
+      // solo el id para no cambiar el contrato que ya usa el frontend.
+      client: a.client?._id ?? a.client,
+      clientNotes: a.client?.notes || '',
+      paid: paidByAppointment.has(String(a._id)),
+    }))
+
+    res.json({ appointments: items, from, to })
   } catch (err) {
     next(err)
   }
@@ -51,7 +105,7 @@ export async function getAppointment(req, res, next) {
       owner: req.user._id,
     })
     if (!appointment) return res.status(404).json({ message: 'Cita no encontrada' })
-    res.json({ appointment })
+    res.json({ appointment: await withAppointmentExtras(appointment, req.user._id) })
   } catch (err) {
     next(err)
   }
@@ -76,17 +130,21 @@ export async function updateAppointmentStatus(req, res, next) {
     if (!appointment) return res.status(404).json({ message: 'Cita no encontrada' })
 
     // Valida la transición (puede lanzar AppointmentError => 409/422).
+    const previousStatus = appointment.status
     const result = transition(appointment, next)
 
-    appointment.status = result.status
-    appointment.statusHistory.push({
-      status: result.status,
-      at: result.changedAt,
-      by: req.user._id,
-    })
-    await appointment.save()
+    if (result.status !== previousStatus) {
+      appointment.status = result.status
+      appointment.statusHistory.push({
+        status: result.status,
+        at: result.changedAt,
+        by: req.user._id,
+      })
+      await appointment.save()
+      await queueAppointmentStatusWhatsApp(appointment, appointment.status)
+    }
 
-    res.json({ appointment })
+    res.json({ appointment: await withAppointmentExtras(appointment, req.user._id) })
   } catch (err) {
     if (err instanceof AppointmentError) {
       return res.status(err.status).json({ message: err.message, code: err.code })
@@ -108,9 +166,12 @@ export async function cancelAppointment(req, res, next) {
     if (!appointment) return res.status(404).json({ message: 'Cita no encontrada' })
 
     const result = transition(appointment, 'cancelled')
-    appointment.status = result.status
-    appointment.statusHistory.push({ status: result.status, at: result.changedAt, by: req.user._id })
-    await appointment.save()
+    if (result.status !== appointment.status) {
+      appointment.status = result.status
+      appointment.statusHistory.push({ status: result.status, at: result.changedAt, by: req.user._id })
+      await appointment.save()
+      await queueAppointmentStatusWhatsApp(appointment, 'cancelled')
+    }
 
     res.json({ appointment })
   } catch (err) {

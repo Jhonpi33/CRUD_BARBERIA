@@ -11,7 +11,7 @@ const benefits = [
     <!-- Panel de marca (solo escritorio) -->
     <aside class="auth-split__brand">
       <RouterLink class="auth-split__logo" to="/">Elysia</RouterLink>
-      <p class="auth-split__tagline">Tu barbería, automatizada de principio a fin.</p>
+      <p class="auth-split__tagline">Tu agenda, en orden y lista para compartir.</p>
       <ul class="auth-split__benefits">
         <li v-for="benefit in benefits" :key="benefit">{{ benefit }}</li>
       </ul>
@@ -68,7 +68,7 @@ const benefits = [
   max-width: 34ch;
 }
 
-/* ✓ con ícono: nunca solo color */
+/* Check con ícono: nunca solo color */
 .auth-split__benefits li {
   display: flex;
   align-items: flex-start;
@@ -76,15 +76,17 @@ const benefits = [
 }
 
 .auth-split__benefits li::before {
-  content: '✓';
+  content: '';
   flex: none;
-  display: inline-grid;
-  place-items: center;
+  display: inline-block;
   width: 22px;
   height: 22px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.22);
-  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.22);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-position: center;
+  background-size: 12px;
+  background-repeat: no-repeat;
 }
 
 /* ---------- Panel del formulario ---------- */

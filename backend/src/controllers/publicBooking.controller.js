@@ -1,45 +1,36 @@
-import mongoose from 'mongoose'
+/*
+  Reserva pública (`/api/public/booking/:slug`).
 
-import { Profile } from '../models/Profile.js'
-import { Service } from '../models/Service.js'
-import { Schedule } from '../models/Schedule.js'
-import { Appointment } from '../models/Appointment.js'
-import { Client, normalizePhone } from '../models/Client.js'
-import { Notification } from '../models/Notification.js'
-import { User } from '../models/User.js'
+  La lógica vive en `services/bookingService.js` porque el agente de IA usa
+  exactamente la misma. Este controlador solo valida la forma de la petición
+  HTTP y da formato a la respuesta.
+*/
+import {
+  getBookingInfo,
+  getAvailability,
+  createBooking,
+  publicProfileData,
+  BookingError,
+} from '../services/bookingService.js'
+import { AvailabilityError } from '../utils/availability.js'
 
-import { computeAvailability, AvailabilityError, isValidDate, dayKeyFromDate } from '../utils/availability.js'
-import { STEP_MINUTES, occupiedSlotKeys, busyRangesFromAppointments, isSlotInPast, filterPastSlots } from '../utils/booking.js'
-import { timeToMinutes } from '../utils/scheduleValidation.js'
-import { wallClockToUtc, utcToWallClock } from '../utils/timezone.js'
-import { sendBookingEmail } from '../utils/mailer.js'
-
-/**
- * Política de autorización de la Fase 5 para reservar:
- * PÚBLICA Y EXPLÍCITA. Cualquier visitante puede reservar desde el enlace
- * /u/:slug (perfil completado). NO se acepta ningún dato del dueño desde el
- * body: el dueño se deduce SIEMPRE del slug del perfil.
- *
- * Toda la disponibilidad se recalcula en el servidor. El navegador solo
- * propone; el backend decide si el hueco existe y está libre.
- */
-
-/** Carga el perfil público (solo si el onboarding está completado). */
-async function loadProfileBySlug(slug) {
-  if (typeof slug !== 'string' || !/^[a-z0-9-]{1,80}$/.test(slug)) return null
-  return Profile.findOne({ slug, completedAt: { $ne: null } })
-}
-
-/** Datos públicos mínimos del perfil para la página de reserva. */
-function publicProfileData(profile) {
-  return {
-    name: profile.professionalName || profile.businessName,
-    type: profile.type,
-    photoUrl: profile.photoUrl || profile.logoUrl || null,
-    location: profile.location || null,
-    phone: profile.phone || null,
-    timezone: null, // se completa con el schedule en el endpoint de disponibilidad
+/** Traduce un error de negocio a su respuesta HTTP. Devuelve true si ya respondió. */
+function respondError(res, err) {
+  if (err instanceof BookingError) {
+    const body = { message: err.message }
+    if (err.code) body.code = err.code
+    if (err.errors) body.errors = err.errors
+    res.status(err.status).json(body)
+    return true
   }
+  if (err instanceof AvailabilityError) {
+    res.status(422).json({
+      message: err.message,
+      errors: [{ path: 'date', message: err.message }],
+    })
+    return true
+  }
+  return false
 }
 
 /**
@@ -49,20 +40,10 @@ function publicProfileData(profile) {
  */
 export async function getPublicBookingInfo(req, res, next) {
   try {
-    const profile = await loadProfileBySlug(req.params.slug)
-    if (!profile) {
-      return res.status(404).json({ message: 'Este perfil no acepta reservas en línea' })
-    }
-
-    const services = await Service.find({ owner: profile.owner, isActive: true })
-      .sort({ durationMinutes: 1, name: 1 })
-      .select('name description price durationMinutes')
-
-    res.json({
-      profile: publicProfileData(profile),
-      services,
-    })
+    const { profile, services } = await getBookingInfo(req.params.slug)
+    res.json({ profile: publicProfileData(profile), services })
   } catch (err) {
+    if (respondError(res, err)) return
     next(err)
   }
 }
@@ -74,78 +55,14 @@ export async function getPublicBookingInfo(req, res, next) {
 export async function getPublicAvailability(req, res, next) {
   try {
     const { serviceId, date } = req.query
-
-    const profile = await loadProfileBySlug(req.params.slug)
-    if (!profile) {
-      return res.status(404).json({ message: 'Este perfil no acepta reservas en línea' })
-    }
-
-    if (!isValidDate(date)) {
-      return res.status(422).json({
-        message: 'Fecha inválida',
-        errors: [{ path: 'date', message: 'Usa una fecha real en formato YYYY-MM-DD' }],
-      })
-    }
-    if (typeof serviceId !== 'string' || !mongoose.Types.ObjectId.isValid(serviceId)) {
-      return res.status(400).json({ message: 'Identificador de servicio inválido' })
-    }
-
-    // El servicio debe pertenecer al dueño del perfil y estar ACTIVO.
-    const service = await Service.findOne({
-      _id: serviceId,
-      owner: profile.owner,
-      isActive: true,
-    })
-    if (!service) {
-      return res.status(404).json({ message: 'Este servicio no está disponible' })
-    }
-
-    const schedule = await Schedule.findOne({ owner: profile.owner })
-    const timezone = schedule?.timezone || 'America/Bogota'
-    const day = schedule?.days?.[dayKeyFromDate(date)]
-
-    // Citas que ya ocupan espacio (pending/confirmed) en esa fecha.
-    const existing = await Appointment.find({
-      owner: profile.owner,
+    const { payload } = await getAvailability({
+      slug: req.params.slug,
+      serviceId,
       date,
-      status: { $in: ['pending', 'confirmed'] },
-    }).select('startMinutes endMinutes')
-
-    const theoretical = computeAvailability({
-      date,
-      timezone,
-      day,
-      durationMinutes: service.durationMinutes,
-      stepMinutes: STEP_MINUTES,
     })
-    const busyRanges = busyRangesFromAppointments(existing)
-    const free = busyRanges.length
-      ? theoretical.filter(
-          (s) =>
-            !busyRanges.some(
-              (b) => s.startMinutes < b.endMinutes && b.startMinutes < s.endMinutes
-            )
-        )
-      : theoretical
-
-    // Quita los huecos de HOY que ya quedaron en el pasado: la página solo
-    // debe ofrecer horas a las que todavía se pueda llegar.
-    const reservable = filterPastSlots(free, date, timezone)
-
-    res.json({
-      date,
-      timezone,
-      durationMinutes: service.durationMinutes,
-      stepMinutes: STEP_MINUTES,
-      slots: reservable.map((s) => ({ start: s.start, end: s.end })),
-    })
+    res.json(payload)
   } catch (err) {
-    if (err instanceof AvailabilityError) {
-      return res.status(422).json({
-        message: err.message,
-        errors: [{ path: 'date', message: err.message }],
-      })
-    }
+    if (respondError(res, err)) return
     next(err)
   }
 }
@@ -160,212 +77,17 @@ export async function getPublicAvailability(req, res, next) {
  */
 export async function createPublicBooking(req, res, next) {
   try {
-    const { serviceId, date, start, name, phone } = req.body
-
-    const profile = await loadProfileBySlug(req.params.slug)
-    if (!profile) {
-      return res.status(404).json({ message: 'Este perfil no acepta reservas en línea' })
-    }
-
-    // --- Validaciones de entrada ---
-    if (typeof serviceId !== 'string' || !mongoose.Types.ObjectId.isValid(serviceId)) {
-      return res.status(400).json({ message: 'Identificador de servicio inválido' })
-    }
-    if (!isValidDate(date)) {
-      return res.status(422).json({
-        message: 'Fecha inválida',
-        errors: [{ path: 'date', message: 'Usa una fecha real en formato YYYY-MM-DD' }],
-      })
-    }
-    if (typeof start !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start)) {
-      return res.status(422).json({
-        message: 'Hora inválida',
-        errors: [{ path: 'start', message: 'Usa una hora en formato HH:MM' }],
-      })
-    }
-    const cleanName = typeof name === 'string' ? name.trim() : ''
-    if (cleanName.length < 2 || cleanName.length > 120) {
-      return res.status(422).json({
-        message: 'El nombre es obligatorio',
-        errors: [{ path: 'name', message: 'El nombre debe tener entre 2 y 120 caracteres' }],
-      })
-    }
-    const cleanPhone = typeof phone === 'string' ? phone.trim() : ''
-    const phoneDigits = normalizePhone(cleanPhone)
-    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
-      return res.status(422).json({
-        message: 'El teléfono es obligatorio',
-        errors: [{ path: 'phone', message: 'El teléfono debe tener entre 7 y 15 dígitos' }],
-      })
-    }
-
-    // --- Servicio activo y perteneciente al dueño ---
-    const service = await Service.findOne({
-      _id: serviceId,
-      owner: profile.owner,
-      isActive: true,
-    })
-    if (!service) {
-      return res.status(404).json({ message: 'Este servicio no está disponible' })
-    }
-
-    // --- Horario del dueño y zona horaria ---
-    const schedule = await Schedule.findOne({ owner: profile.owner })
-    const timezone = schedule?.timezone || 'America/Bogota'
-    const day = schedule?.days?.[dayKeyFromDate(date)]
-
-    // --- Recalcular la disponibilidad COMPLETA en el servidor ---
-    const theoretical = computeAvailability({
+    const { serviceId, date, start, name, phone, whatsappOptIn = false } = req.body
+    const { appointment } = await createBooking({
+      slug: req.params.slug,
+      serviceId,
       date,
-      timezone,
-      day,
-      durationMinutes: service.durationMinutes,
-      stepMinutes: STEP_MINUTES,
+      start,
+      name,
+      phone,
+      whatsappOptIn,
+      source: 'public',
     })
-    const startMinutes = timeToMinutes(start)
-    const requested = theoretical.find((s) => s.startMinutes === startMinutes)
-
-    if (!requested) {
-      return res.status(409).json({
-        code: 'SLOT_UNAVAILABLE',
-        message: 'Ese horario ya no está disponible. Elige otro.',
-      })
-    }
-
-    // --- El hueco no puede haber quedado en el pasado ---
-    // La UI solo ofrece fechas futuras, pero la API es PÚBLICA: sin esta
-    // validación, un POST directo podría agendar para el mes pasado.
-    // Se compara en la zona del dueño, no en la del servidor.
-    if (isSlotInPast({ date, start, timezone })) {
-      return res.status(422).json({
-        code: 'SLOT_IN_PAST',
-        message: 'Ese horario ya pasó. Elige una fecha y hora futuras.',
-      })
-    }
-
-    // --- Descontar citas existentes ---
-    const existing = await Appointment.find({
-      owner: profile.owner,
-      date,
-      status: { $in: ['pending', 'confirmed'] },
-    }).select('startMinutes endMinutes')
-    const busyRanges = busyRangesFromAppointments(existing)
-    const stillFree = !busyRanges.some(
-      (b) => requested.startMinutes < b.endMinutes && b.startMinutes < requested.endMinutes
-    )
-    if (!stillFree) {
-      return res.status(409).json({
-        code: 'SLOT_UNAVAILABLE',
-        message: 'Ese horario ya fue reservado. Elige otro.',
-      })
-    }
-
-    // --- Cliente (deduplicado por teléfono dentro del dueño) ---
-    let client = await Client.findOne({ owner: profile.owner, phoneNormalized: phoneDigits })
-    if (!client) {
-      client = await Client.create({
-        owner: profile.owner,
-        name: cleanName,
-        phone: cleanPhone,
-        phoneNormalized: phoneDigits,
-      })
-    } else if (client.name !== cleanName) {
-      // Actualiza el nombre si cambió, sin duplicar el cliente.
-      client.name = cleanName
-      await client.save()
-    }
-
-    // --- Instantes UTC (la zona del dueño, no la del servidor) ---
-    const startUtc = wallClockToUtc(date, requested.start, timezone)
-    const endUtc = wallClockToUtc(date, requested.end, timezone)
-
-    // --- Claves de slot que bloquea esta cita ---
-    const occupied = occupiedSlotKeys(date, requested.startMinutes, service.durationMinutes, STEP_MINUTES)
-
-    // --- INSERT: el índice único parcial es el guardián de la concurrencia.
-    // Si otra persona tomó el mismo hueco en paralelo, MongoDB lanza
-    // DuplicateKeyError y respondemos 409.
-    let appointment
-    try {
-      appointment = await Appointment.create({
-        owner: profile.owner,
-        client: client._id,
-        service: service._id,
-        serviceSnapshot: {
-          name: service.name,
-          price: service.price,
-          durationMinutes: service.durationMinutes,
-        },
-        clientSnapshot: { name: cleanName, phone: cleanPhone },
-        date,
-        timezone,
-        localStart: requested.start,
-        localEnd: requested.end,
-        startMinutes: requested.startMinutes,
-        endMinutes: requested.endMinutes,
-        startUtc,
-        endUtc,
-        occupiedSlots: occupied,
-        status: 'pending',
-        source: 'public',
-        statusHistory: [{ status: 'pending', at: new Date(), by: null }],
-      })
-    } catch (err) {
-      if (err?.code === 11000) {
-        return res.status(409).json({
-          code: 'SLOT_TAKEN',
-          message: 'Ese horario acaba de ser reservado por otra persona. Elige otro.',
-        })
-      }
-      throw err
-    }
-
-    // --- Notificación interna del panel (best-effort) ---
-    // Se crea DESPUÉS de la cita y dentro de su propio try/catch: si falla,
-    // solo se registra el error y la reserva sigue siendo válida. El
-    // dedupeKey (type:appointmentId) con índice único evita duplicados si
-    // este bloque se ejecutara dos veces para la misma cita.
-    try {
-      const w = utcToWallClock(appointment.startUtc.getTime(), appointment.timezone)
-      const fecha = `${w.year}-${String(w.month).padStart(2, '0')}-${String(w.day).padStart(2, '0')}`
-      const hora = `${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')}`
-
-      await Notification.create({
-        owner: appointment.owner,
-        type: 'booking_created',
-        appointment: appointment._id,
-        title: 'Nueva reserva',
-        message: `${cleanName} reservó "${service.name}" para el ${fecha} a las ${hora} (${appointment.timezone}).`,
-        dedupeKey: `booking_created:${appointment._id}`,
-      })
-    } catch (err) {
-      // 11000 = clave duplicada: la notificación ya existe; no es un error.
-      if (err?.code !== 11000) {
-        console.error('[notificaciones] no se pudo crear la notificación de reserva:', err)
-      }
-    }
-
-    // --- Correo de aviso al dueño (best-effort) ---
-    // Bloque propio e independiente: si el correo no está configurado
-    // (faltan SMTP_*), está mal configurado o falla el envío, solo se
-    // registra y la reserva sigue siendo válida (201).
-    try {
-      const ownerUser = await User.findById(appointment.owner).select('email name')
-      const mailResult = await sendBookingEmail({
-        ownerEmail: ownerUser?.email,
-        ownerName: ownerUser?.name,
-        clientName: cleanName,
-        service: { name: service.name, price: service.price, durationMinutes: service.durationMinutes },
-        startUtc: appointment.startUtc,
-        timezone: appointment.timezone,
-      })
-
-      if (mailResult.error) {
-        console.error('[mailer] no se pudo enviar el correo de reserva:', mailResult.error)
-      }
-    } catch (err) {
-      console.error('[mailer] error inesperado enviando el correo de reserva:', err)
-    }
 
     // Respuesta PÚBLICA: sin datos internos del dueño.
     res.status(201).json({
@@ -382,6 +104,7 @@ export async function createPublicBooking(req, res, next) {
       message: 'Reserva recibida. Recibirás la confirmación.',
     })
   } catch (err) {
+    if (respondError(res, err)) return
     next(err)
   }
 }

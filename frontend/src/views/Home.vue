@@ -4,50 +4,38 @@ import AccordionItem from '../components/AccordionItem.vue'
 const productOptions = [
   {
     key: 'barbero',
-    title: 'Para ti, barbero',
+    title: 'Para barberos independientes',
     description:
-      'Eres independiente y quieres dejar el cuaderno y los mensajes sueltos. Agenda, clientes y cobros desde el celular.',
-    points: ['Agenda personal', 'Recordatorios automáticos', 'Historial de clientes'],
-  },
-  {
-    key: 'barberia',
-    title: 'Para tu barbería',
-    description:
-      'Tienes un equipo y necesitas verlo todo: turnos de cada barbero, caja del día, productos e inventario.',
-    points: ['Agenda por barbero', 'Caja e informes', 'Inventario de productos'],
+      'Organiza tus servicios, horarios, reservas, clientes y caja desde el celular o computador.',
+    points: ['Perfil público y reservas en línea', 'Agenda y clientes', 'Caja básica'],
   },
 ]
 
 const features = [
   {
     icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
-    title: 'Agenda inteligente',
-    description: 'Turnos por barbero, duración por servicio y bloqueos automáticos de horarios.',
+    title: 'Agenda y reservas',
+    description: 'Define tus servicios y horarios; comparte un enlace para que tus clientes reserven.',
   },
   {
-    icon: 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
-    title: 'Recordatorios automáticos',
-    description: 'El cliente recibe la confirmación y el recordatorio de su turno sin que tú hagas nada.',
+    icon: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.36 1.9.7 2.79a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.89.34 1.83.58 2.79.7a2 2 0 0 1 1.74 2.03z',
+    title: 'Mensajes listos para WhatsApp',
+    description: 'Usa textos preparados para confirmar, recordar o cancelar una cita manualmente.',
   },
   {
     icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
     title: 'Ficha de cada cliente',
-    description: 'Cortes preferidos, alergias, visitas y gasto histórico en una sola pantalla.',
+    description: 'Consulta las citas y las notas privadas que guardas para cada cliente.',
   },
   {
     icon: 'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
-    title: 'Cobros y caja',
-    description: 'Registra cobros en segundos y cierra la caja del día con un resumen claro.',
+    title: 'Control de citas',
+    description: 'Confirma, completa o cancela las solicitudes desde tu agenda.',
   },
   {
     icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
-    title: 'Equipo y comisiones',
-    description: 'Suma barberos, reparte turnos y calcula comisiones sin hojas de cálculo.',
-  },
-  {
-    icon: 'M18 20V10M12 20V4M6 20v-6',
-    title: 'Reportes claros',
-    description: 'Ingresos, horas pico y rendimiento por barbero para decidir con datos.',
+    title: 'Caja diaria',
+    description: 'Registra apertura, ingresos y egresos; al final revisa el cuadre de caja.',
   },
 ]
 
@@ -55,53 +43,39 @@ const steps = [
   {
     number: '01',
     title: 'Crea tu cuenta',
-    description: 'Solo necesitas nombre, correo y contraseña. Tarda menos de un minuto.',
+    description: 'Regístrate con tu nombre y verifica tu correo.',
   },
   {
     number: '02',
-    title: 'Elige tu tipo de cuenta',
-    description: 'Barbero individual o dueño de barbería. Elysia adapta todo el panel a tu caso.',
+    title: 'Completa tu perfil',
+    description: 'Agrega los datos que verán tus clientes en tu perfil público.',
   },
   {
     number: '03',
     title: 'Configura tus servicios',
-    description: 'Define cortes, duraciones y precios. Tu agenda queda lista para recibir turnos.',
+    description: 'Define tus servicios, precios, duraciones y horarios de atención.',
   },
   {
     number: '04',
     title: 'Empieza a recibir turnos',
-    description: 'Comparte tu agenda y deja que los recordatorios trabajen por ti.',
+    description: 'Comparte tu perfil por WhatsApp o redes y gestiona las solicitudes desde tu agenda.',
   },
 ]
 
 const plans = [
   {
-    name: 'Plan Barbero',
-    price: '$9.900',
-    period: '/mes',
-    tagline: 'Para el barbero independiente',
+    name: 'Barbero independiente',
+    price: '$20.000',
+    period: 'COP / mes',
+    tagline: 'Organiza tu agenda y recibe reservas desde tu perfil público.',
     features: [
-      'Agenda personal inteligente',
-      'Recordatorios automáticos',
-      'Ficha de clientes',
-      'Cobros y cierre de caja',
+      'Perfil público y enlace para compartir',
+      'Catálogo de servicios y horarios',
+      'Reservas en línea y agenda',
+      'Directorio e historial de clientes',
+      'Caja básica y mensajes manuales para WhatsApp',
     ],
-    cta: 'Empezar gratis',
-  },
-  {
-    name: 'Plan Barbería',
-    price: '$24.900',
-    period: '/mes',
-    tagline: 'Para equipos y locales con varios barberos',
-    features: [
-      'Todo lo del Plan Barbero',
-      'Agenda por cada barbero del equipo',
-      'Roles de empleado y permisos',
-      'Inventario de productos',
-      'Reportes e informes de negocio',
-    ],
-    highlight: true,
-    cta: 'Empezar gratis',
+    cta: 'Crear cuenta',
   },
 ]
 
@@ -117,19 +91,19 @@ const faqs = [
       'No. Tus clientes agendan desde un enlace sencillo, sin registro ni contraseñas.',
   },
   {
-    question: '¿Puedo usarlo con varios barberos?',
+    question: '¿Elysia manda los mensajes de WhatsApp automáticamente?',
     answer:
-      'Sí. El Plan Barbería está pensado para equipos: cada barbero tiene su agenda y tú ves el negocio completo en un solo lugar.',
+      'Desde la agenda puedes abrir mensajes preparados, revisarlos y enviarlos por WhatsApp.',
   },
   {
-    question: '¿Qué pasa con la IA? ¿Va a responder por mí?',
+    question: '¿Cómo se paga el plan?',
     answer:
-      'La IA propone horarios y responde consultas repetitivas, pero siempre dentro de tus reglas: tú decides qué puede y qué no puede hacer.',
+      'El pago mensual se coordina directamente con el equipo de Elysia.',
   },
   {
-    question: '¿Cuándo puedo cancelar?',
+    question: '¿Después seguirá costando lo mismo?',
     answer:
-      'Cuando quieras, desde tu panel. Sin permanencia mínima ni preguntas incómodas.',
+      'Te informaremos de cualquier cambio de precio antes de aplicarlo.',
   },
 ]
 </script>
@@ -139,20 +113,18 @@ const faqs = [
     <!-- 2. Hero principal -->
     <section class="hero">
       <div class="hero__content">
-        <p class="hero__eyebrow">Software de gestión para barberías</p>
+        <p class="hero__eyebrow">Agenda para barberos independientes</p>
         <h1 class="hero__title">
-          Tu barbería,<br />
-          <span class="hero__title-accent">automatizada</span> de principio a fin.
+          Tu agenda,<br />
+          <span class="hero__title-accent">en orden</span> y lista para compartir.
         </h1>
         <p class="hero__subtitle">
-          Elysia agenda tus turnos, recuerda a tus clientes, controla tu caja y usa inteligencia
-          artificial para que dejes de apagar incendios y te dediques a cortar pelo.
+          Recibe reservas desde tu perfil, organiza tus citas y registra tu caja.
         </p>
         <div class="hero__actions">
-          <RouterLink class="btn btn--primary btn--lg" to="/register">Crear cuenta gratis</RouterLink>
-          <RouterLink class="btn btn--secondary btn--lg" to="/precios">Ver planes</RouterLink>
+          <RouterLink class="btn btn--primary btn--lg" to="/registro">Crear cuenta</RouterLink>
+          <RouterLink class="btn btn--secondary btn--lg" to="/precios">Ver precios</RouterLink>
         </div>
-        <p class="hero__note">Sin tarjeta de crédito. Configúralo en menos de 5 minutos.</p>
       </div>
 
       <!-- Maqueta de agenda hecha solo con HTML/CSS (sin imágenes externas) -->
@@ -192,8 +164,7 @@ const faqs = [
 
     <!-- 3. Selector de producto -->
     <section class="section">
-      <h2 class="section__title">¿Para quién es Elysia?</h2>
-      <p class="section__lead">Elige tu perfil y el panel se adapta a cómo trabajas.</p>
+      <h2 class="section__title">Hecho para tu trabajo diario</h2>
 
       <div class="product-grid">
         <article v-for="option in productOptions" :key="option.key" class="product-card">
@@ -201,9 +172,6 @@ const faqs = [
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path v-if="option.key === 'barbero'" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle v-if="option.key === 'barbero'" cx="12" cy="7" r="4" />
-              <path v-if="option.key === 'barberia'" d="M3 21h18" />
-              <path v-if="option.key === 'barberia'" d="M5 21V7l7-4 7 4v14" />
-              <path v-if="option.key === 'barberia'" d="M9 21v-6h6v6" />
             </svg>
           </span>
           <h3 class="product-card__title">{{ option.title }}</h3>
@@ -220,8 +188,7 @@ const faqs = [
 
     <!-- 4. Funcionalidades principales -->
     <section class="section section--alt">
-      <h2 class="section__title">Todo lo que tu barbería necesita</h2>
-      <p class="section__lead">Un solo lugar para agendar, cobrar, vender y analizar.</p>
+      <h2 class="section__title">Gestiona tus citas y tu caja</h2>
 
       <div class="feature-grid">
         <article v-for="feature in features" :key="feature.title" class="feature-card">
@@ -240,30 +207,26 @@ const faqs = [
       </p>
     </section>
 
-    <!-- 5. Sección de automatización con IA -->
+    <!-- Comunicación desde la agenda -->
     <section class="section ai-section">
       <div class="ai-section__content">
-        <p class="ai-section__eyebrow">Inteligencia artificial</p>
-        <h2 class="section__title">La IA atiende, tú cortas</h2>
+        <p class="ai-section__eyebrow">Tú mantienes el control</p>
+        <h2 class="section__title">Coordina cada cita por WhatsApp</h2>
         <p class="section__lead ai-section__lead">
-          Elysia usa IA para responder consultas, sugerir horarios libres y detectar clientes
-          que están por irse. Trabaja con tus reglas, nunca por su cuenta.
+          Desde la agenda puedes abrir mensajes preparados para confirmar, recordar o cancelar.
+          Revísalos y envíalos desde tu propio WhatsApp.
         </p>
         <ul class="ai-section__list">
-          <li>Responde dudas frecuentes por WhatsApp las 24 horas.</li>
-          <li>Sugiere el mejor horario disponible cuando un cliente pide turno.</li>
-          <li>Alerta a los clientes que hace meses no visitan la barbería.</li>
+          <li>Revisa las solicitudes de reserva en tu agenda.</li>
+          <li>Contacta al cliente con un texto listo para enviar.</li>
+          <li>Confirma el servicio, fecha y hora antes de atender.</li>
         </ul>
       </div>
       <div class="ai-section__demo" aria-hidden="true">
-        <p class="ai-chat__bubble ai-chat__bubble--client">¿Tienen turno mañana tarde?</p>
-        <p class="ai-chat__bubble ai-chat__bubble--ia">
-          ¡Hola Carlos! Sí: tengo 16:30 o 18:00 con Andrés. ¿Cuál te sirve?
-        </p>
-        <p class="ai-chat__bubble ai-chat__bubble--client">16:30, perfecto.</p>
-        <p class="ai-chat__bubble ai-chat__bubble--ia">
-          Listo ✅ Turno reservado. Te recuerdo mañana a las 10:00.
-        </p>
+        <p class="ai-chat__bubble ai-chat__bubble--client">Nueva solicitud de cita</p>
+        <p class="ai-chat__bubble ai-chat__bubble--ia">Revisa el horario y el servicio en tu agenda.</p>
+        <p class="ai-chat__bubble ai-chat__bubble--client">Confirmo por WhatsApp</p>
+        <p class="ai-chat__bubble ai-chat__bubble--ia">Tú envías el mensaje cuando esté todo listo.</p>
       </div>
     </section>
 
@@ -283,8 +246,7 @@ const faqs = [
 
     <!-- 7. Comparación de planes (resumen) -->
     <section class="section">
-      <h2 class="section__title">Planes simples, sin sorpresas</h2>
-      <p class="section__lead">Empieza gratis. Crece cuando tu barbería lo pida.</p>
+      <h2 class="section__title">Un plan mensual</h2>
 
       <div class="plan-grid">
         <article
@@ -293,10 +255,9 @@ const faqs = [
           class="plan-card"
           :class="{ 'plan-card--highlight': plan.highlight }"
         >
-          <span v-if="plan.highlight" class="plan-card__badge">Recomendado</span>
           <h3 class="plan-card__name">{{ plan.name }}</h3>
           <p class="plan-card__price">
-            {{ plan.price }}<span class="plan-card__period">{{ plan.period }}</span>
+            {{ plan.price }}<span class="plan-card__period"> COP / mes</span>
           </p>
           <p class="plan-card__tagline">{{ plan.tagline }}</p>
           <ul class="plan-card__features">
@@ -313,7 +274,7 @@ const faqs = [
       </div>
 
       <p class="section__cta">
-        <RouterLink class="btn btn--secondary" to="/precios">Comparar planes en detalle</RouterLink>
+        <RouterLink class="btn btn--secondary" to="/precios">Ver detalles del plan</RouterLink>
       </p>
     </section>
 
@@ -331,11 +292,11 @@ const faqs = [
 
     <!-- CTA final -->
     <section class="section final-cta">
-      <h2 class="section__title">Deja el cuaderno. Empieza con Elysia.</h2>
+      <h2 class="section__title">Abre tu agenda en Elysia</h2>
       <p class="section__lead">
-        Crea tu cuenta hoy y ten tu barbería funcionando con agenda en línea esta misma semana.
+        Crea tu perfil y comparte tu enlace para recibir reservas.
       </p>
-      <RouterLink class="btn btn--primary btn--lg" to="/register">Crear cuenta gratis</RouterLink>
+      <RouterLink class="btn btn--primary btn--lg" to="/registro">Crear cuenta</RouterLink>
     </section>
   </div>
 </template>
@@ -408,12 +369,6 @@ const faqs = [
   gap: var(--space-4);
   justify-content: flex-start;
   flex-wrap: wrap;
-}
-
-.hero__note {
-  margin-top: var(--space-4);
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
 }
 
 /* Maqueta de agenda (solo HTML/CSS) */
@@ -586,9 +541,15 @@ const faqs = [
 }
 
 .product-card__points li::before {
-  content: '✓ ';
-  color: var(--success);
-  font-weight: 700;
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.35em;
+  vertical-align: -0.15em;
+  background-color: var(--success);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .product-card__link {
@@ -685,8 +646,15 @@ const faqs = [
 }
 
 .ai-section__list li::before {
-  content: '✦ ';
-  color: var(--accent);
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.35em;
+  vertical-align: -0.1em;
+  background-color: var(--accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .ai-section__demo {
@@ -796,18 +764,6 @@ const faqs = [
   box-shadow: 0 0 0 1px var(--accent), var(--shadow-md);
 }
 
-.plan-card__badge {
-  position: absolute;
-  top: -12px;
-  left: var(--space-6);
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: var(--radius-pill);
-}
-
 .plan-card__name {
   font-size: var(--font-size-md);
   color: var(--text);
@@ -840,9 +796,15 @@ const faqs = [
 }
 
 .plan-card__features li::before {
-  content: '✓ ';
-  color: var(--success);
-  font-weight: 700;
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.35em;
+  vertical-align: -0.15em;
+  background-color: var(--success);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .plan-card .btn {

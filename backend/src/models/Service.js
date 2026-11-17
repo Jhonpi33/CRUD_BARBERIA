@@ -49,6 +49,20 @@ const serviceSchema = new mongoose.Schema(
         message: 'La duración debe ser un entero entre 10 y 240 minutos',
       },
     },
+    /**
+     * Minutos de aire que se dejan DESPUÉS de la cita (y ANTES de la
+     * siguiente): cambio de turno, limpieza, espera. La disponibilidad nunca
+     * ofrece un inicio dentro de ese margen respecto de otra cita.
+     * 0 = sin margen. No forma parte de la duración que ve el cliente.
+     */
+    bufferMinutes: {
+      type: Number,
+      default: 10,
+      validate: {
+        validator: (v) => Number.isInteger(v) && v >= 0 && v <= 120,
+        message: 'El margen debe ser un entero entre 0 y 120 minutos',
+      },
+    },
     isActive: {
       type: Boolean,
       default: true,

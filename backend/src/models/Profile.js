@@ -37,6 +37,7 @@ const profileSchema = new mongoose.Schema(
     // ---- Comunes a ambos tipos ----
     phone: { type: String, trim: true, maxlength: 30, default: '' },
     location: { type: String, trim: true, maxlength: 160, default: '' },
+    whatsappNotificationsEnabled: { type: Boolean, default: false },
 
     // ---- Solo barbero ----
     professionalName: { type: String, trim: true, maxlength: 80, default: '' },
@@ -73,5 +74,21 @@ export const REQUIRED_FIELDS = {
   barber: ['professionalName', 'phone', 'location', 'description'],
   barbershop: ['businessName', 'phone', 'location'],
 }
+
+/**
+ * Índice único PARCIAL en `slug`.
+ *
+ * La reserva pública resuelve al propietario por slug: si dos perfiles tuvieran
+ * el mismo enlace, la cita se guardaría en la cuenta equivocada (el enlace
+ * público apuntaría al perfil equivocado). `uniqueSlug()` ya evita el caso
+ * normal; este índice cierra la carrera de dos onboards simultáneos.
+ *
+ * Es parcial porque los perfiles sin onboarding completado tienen `slug: null`
+ * y todos deben poder coexistir.
+ */
+profileSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { slug: { $type: 'string' } } }
+)
 
 export const Profile = mongoose.model('Profile', profileSchema)

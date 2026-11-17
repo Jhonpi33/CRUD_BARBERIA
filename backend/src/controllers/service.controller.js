@@ -13,6 +13,7 @@ function pick(body) {
   if (typeof body.description === 'string') out.description = body.description
   if (body.price !== undefined) out.price = body.price
   if (body.durationMinutes !== undefined) out.durationMinutes = body.durationMinutes
+  if (body.bufferMinutes !== undefined) out.bufferMinutes = body.bufferMinutes
   if (body.isActive !== undefined) out.isActive = body.isActive
   return out
 }

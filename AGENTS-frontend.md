@@ -9,9 +9,11 @@ SaaS para automatizar y gestionar negocios de barbería. Dos productos:
 Vue 3 (Composition API, `<script setup>`), Vite, Vue Router, Pinia, Axios. CSS propio (sin librerías de UI).
 El backend es otro repo (Express + Mongoose). El frontend lo llama en `/api` (proxy de Vite a `http://localhost:3000`).
 
-## Alcance ACTUAL (no construir nada fuera de esto)
-Landing, /precios, /login, /register, /seleccionar-rol, /onboarding/barbero, /onboarding/barberia.
-NO construir todavía: agenda, clientes, IA, WhatsApp, pagos, inventario, dashboards.
+## Alcance ACTUAL
+- Landing, /funciones, /precios, /legal, /login, /registro, /recuperar-contrasena, /seleccionar-rol, /onboarding/barbero, /onboarding/barberia.
+- Perfil público (/u/:slug) y flujo de reserva pública (/u/:slug/reservar).
+- Panel del barbero completo: Compartir perfil (con copiado de enlace y WhatsApp), Agenda (con botones de WhatsApp y cobro en un clic), Servicios, Horarios, Clientes con detalle/historial y ficha técnica de notas privadas, Caja (apertura, ingresos/egresos, cuadre e historial) y Notificaciones.
+NO construir todavía: pasarelas de pago en línea, inventario, reportes financieros avanzados (comisiones/utilidades), IA, ni módulo multiempleado de barbería.
 
 ## Estructura
 src/
@@ -35,3 +37,4 @@ src/
 6. Diseño responsive (celular primero). Sin dependencias nuevas sin avisar.
 7. Al terminar, lista los archivos creados o modificados.
 8. Ramas: nunca en `main`/`develop`. Commits tipo `feat:`, `fix:`, `chore:`.
+9. Iconografía: la interfaz NO usa emojis; todos los símbolos son SVG con el componente `src/components/Icon.vue` (`<Icon name="…" :size="…" />`). Para pseudoelementos CSS, SVG en `data:` con `mask`. Sin librerías de iconos.

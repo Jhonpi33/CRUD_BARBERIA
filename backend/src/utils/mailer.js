@@ -53,3 +53,98 @@ export async function sendBookingEmail({
 
   return sendMail({ to: ownerEmail, subject, text: lines.join('\n') })
 }
+
+/**
+ * Correo con el CÓDIGO de 6 dígitos para validar la cuenta nueva.
+ *
+ * Best-effort igual que el resto: no lanza y devuelve `{ sent }` para que el
+ * controlador decida (en producción, si el correo cae, la cuenta no se queda
+ * bloqueada).
+ *
+ * @param {{to: string, name?: string, code: string, minutes: number}} input
+ * @returns {Promise<{sent: boolean, skipped?: boolean, error?: Error, reason?: string}>}
+ */
+export async function sendVerificationEmail({ to, name, code, minutes }) {
+  if (!to) {
+    return { sent: false, skipped: true, reason: 'sin destinatario' }
+  }
+
+  const subject = 'Tu código de verificación de Elysia'
+  const lines = [
+    `Hola${name ? ` ${name}` : ''},`,
+    '',
+    'Tu código de verificación es:',
+    '',
+    `   ${code}`,
+    '',
+    `Caduca en ${minutes} minutos. Si no creaste esta cuenta, ignora este correo.`,
+  ]
+
+  return sendMail({ to, subject, text: lines.join('\n') })
+}
+
+/** Confirma al nuevo usuario que su cuenta ya fue creada. */
+export async function sendAccountCreatedEmail({ to, name, requiresVerification }) {
+  if (!to) return { sent: false, skipped: true, reason: 'sin destinatario' }
+
+  const subject = 'Tu cuenta de Elysia fue creada'
+  const nextStep = requiresVerification
+    ? 'Para continuar, verifica tu correo con el código que te enviamos en otro mensaje.'
+    : 'Ya puedes iniciar sesión y completar tu perfil de barbero.'
+  const lines = [
+    `Hola${name ? ` ${name}` : ''},`,
+    '',
+    'Tu cuenta de Elysia fue creada correctamente.',
+    nextStep,
+    '',
+    'Si no solicitaste esta cuenta, puedes ignorar este mensaje.',
+  ]
+
+  return sendMail({ to, subject, text: lines.join('\n') })
+}
+
+/** Avisa al correo administrativo de una cuenta nueva, sin bloquear el registro. */
+export async function sendAdminNewAccountEmail({ to, accountName, accountEmail, requiresVerification }) {
+  if (!to) return { sent: false, skipped: true, reason: 'ADMIN_EMAIL no configurado' }
+
+  const createdAt = new Intl.DateTimeFormat('es-CO', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'America/Bogota',
+  }).format(new Date())
+  const lines = [
+    'Se creó una cuenta nueva en Elysia.',
+    '',
+    `Nombre: ${accountName}`,
+    `Correo: ${accountEmail}`,
+    `Verificación: ${requiresVerification ? 'pendiente' : 'no requerida'}`,
+    `Fecha: ${createdAt} (America/Bogota)`,
+  ]
+
+  return sendMail({
+    to,
+    subject: 'Nueva cuenta registrada en Elysia',
+    text: lines.join('\n'),
+  })
+}
+
+/** Envía un enlace de recuperación sin exponer el token en respuestas de producción. */
+export async function sendPasswordResetEmail({ to, name, resetUrl, minutes = 30 }) {
+  if (!to) {
+    return { sent: false, skipped: true, reason: 'sin destinatario' }
+  }
+
+  const subject = 'Restablece tu contraseña de Elysia'
+  const lines = [
+    `Hola${name ? ` ${name}` : ''},`,
+    '',
+    'Recibimos una solicitud para cambiar la contraseña de tu cuenta de Elysia.',
+    `Abre este enlace dentro de los próximos ${minutes} minutos:`,
+    '',
+    resetUrl,
+    '',
+    'Si no solicitaste este cambio, ignora este correo. Tu contraseña seguirá igual.',
+  ]
+
+  return sendMail({ to, subject, text: lines.join('\n') })
+}

@@ -20,9 +20,21 @@ Cada carpeta tiene su propio package.json y su propio .env.example. No hay packa
 - Una tarea de FRONTEND solo toca archivos dentro de `frontend/`.
 - Nunca mezcles las dos en una misma tarea. Si una función necesita las dos, se hace en dos tareas (primero backend, después frontend).
 
-## Alcance ACTUAL (no construir nada fuera de esto)
-Landing, /precios, /login, /register, /seleccionar-rol, /onboarding/barbero, /onboarding/barberia, y la autenticación en el backend.
-NO construir todavía: agenda, citas, clientes, IA, WhatsApp, pagos, inventario, dashboards.
+## Alcance ACTUAL
+- **Público y Acceso**: Landing (`/`), `/funciones`, `/precios`, `/legal`, `/login`, `/registro`, `/recuperar-contrasena`, `/seleccionar-rol`.
+- **Onboarding y Perfil**: Onboarding de barbero (`/onboarding/barbero`) y barbería (`/onboarding/barberia`), persistencia de perfil y perfil público en `/u/:slug`.
+- **Panel del Barbero**:
+  - Compartir perfil: enlace directo a `/u/:slug`, copiado al portapapeles y botón para compartir por WhatsApp.
+  - Servicios: catálogo con precios, duraciones y activación/desactivación (`/panel/barbero/servicios`).
+  - Horarios: configuración semanal de atención, descansos y zona horaria (`/panel/barbero/horarios`).
+  - Reservas públicas: disponibilidad en tiempo real y reserva de citas sin cuenta (`/u/:slug/reservar`).
+  - Agenda: gestión de turnos diarios/semanales con control de estados y concurrencia atómica (`/panel/barbero/agenda`).
+  - Comunicación directa: botones de WhatsApp en cada tarjeta de cita (solicitud recibida, recordatorio, confirmación con fecha/hora/ubicación en enlace de mapa, "turno listo" y cancelación) con textos listos vía `frontend/src/utils/whatsapp.js` y enlaces de mapa vía `frontend/src/utils/maps.js`.
+  - Clientes: directorio automático alimentado por reservas públicas, detalle con historial y ficha técnica de notas privadas (`/panel/barbero/clientes`).
+  - Caja: sesión con apertura (fondo inicial), ingresos/egresos, cobro de citas en un clic desde la agenda y cierre con cuadre (`/panel/barbero/caja`).
+  - Notificaciones internas del panel y correos de confirmación al dueño.
+
+NO construir todavía: pasarelas de pago en línea (Nequi/Daviplata/tarjetas), inventario de productos, reportes financieros avanzados (comisiones, utilidades), IA, ni módulo de equipo/empleados de barbería.
 
 ---------------------------------------------------------------
 ## BACKEND (carpeta backend/)
@@ -70,6 +82,7 @@ Rutas: / , /precios , /login , /register , /seleccionar-rol , /onboarding/barber
 3. Todas las llamadas HTTP pasan por `frontend/src/services/api.js`. Prohibido usar `fetch`/`axios` suelto en componentes.
 4. No guardes contraseñas ni datos sensibles en el store ni en logs.
 5. Diseño responsive (celular primero). Sin dependencias nuevas sin avisar.
+6. Iconografía: sin emojis en la interfaz; todos los símbolos son SVG con `frontend/src/components/Icon.vue`.
 
 ---------------------------------------------------------------
 ## Reglas generales de trabajo

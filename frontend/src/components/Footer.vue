@@ -4,7 +4,7 @@
       <div class="footer__brand">
         <p class="footer__logo">Elysia</p>
         <p class="footer__tagline">
-          El software que automatiza y gestiona barberías: agenda, clientes, cobros e IA en un solo lugar.
+          Herramientas para que barberos independientes organicen su perfil, citas, clientes y caja.
         </p>
       </div>
 
@@ -17,7 +17,7 @@
       <div class="footer__col">
         <p class="footer__heading">Cuenta</p>
         <RouterLink to="/login">Iniciar sesión</RouterLink>
-        <RouterLink to="/register">Crear cuenta</RouterLink>
+        <RouterLink to="/registro">Crear cuenta</RouterLink>
         <RouterLink to="/recuperar-contrasena">Recuperar contraseña</RouterLink>
       </div>
 

@@ -19,16 +19,27 @@ const hasNav = computed(() => ['barber', 'barbershop_owner'].includes(auth.role)
 const nav = computed(() => [
   { to: base.value, label: 'Inicio', icon: 'home', exact: true },
   { to: `${base.value}/agenda`, label: 'Agenda', icon: 'calendar' },
+  { to: `${base.value}/clientes`, label: 'Clientes', icon: 'users' },
+  { to: `${base.value}/caja`, label: 'Caja', icon: 'wallet' },
   { to: `${base.value}/servicios`, label: 'Servicios', icon: 'scissors' },
   { to: `${base.value}/horarios`, label: 'Horarios', icon: 'clock' },
+  // Asistente de IA (modo prueba). En móvil se abrevia para que quepa.
+  { to: `${base.value}/agente`, label: 'Asistente', short: 'Bot', icon: 'sparkle' },
 ])
 
 // Íconos SVG inline (trazo 24x24), sin librerías.
 const icons = {
   home: 'M3 10.5 12 3l9 7.5M5 9.5V21h5v-6h4v6h5V9.5',
   calendar: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+  users:
+    'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
   scissors: 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12',
   clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+  // Billetera (caja)
+  wallet:
+    'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zM3 10h18M16 14h3',
+  // Destello (asistente de IA)
+  sparkle: 'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z',
 }
 
 function isActive(to, exact) {
@@ -91,7 +102,11 @@ function onLogout() {
       <header class="panel__topbar">
         <RouterLink class="panel__brand" to="/">Elysia</RouterLink>
         <div class="panel__meta">
-          <NotificationBell />
+          <!--
+            La campana solo tiene sentido para quien recibe solicitudes de cita
+            (barbero y barbería). Cliente, admin y empleado no tienen bandeja.
+          -->
+          <NotificationBell v-if="hasNav" />
           <span v-if="auth.role" class="panel__badge">
             {{ ROLE_LABEL[auth.role] || auth.role }}
           </span>
@@ -126,7 +141,7 @@ function onLogout() {
         >
           <path :d="icons[item.icon]" />
         </svg>
-        <small>{{ item.label }}</small>
+        <small>{{ item.short || item.label }}</small>
       </RouterLink>
     </nav>
   </div>
@@ -329,7 +344,12 @@ function onLogout() {
     align-items: stretch;
   }
 
-  .panel__topbar,
+  /*
+    Solo los roles con sidebar pierden la topbar en escritorio.
+    Cliente, admin y empleado no tienen nav lateral: su topbar es la única
+    forma de ver la cuenta y cerrar sesión.
+  */
+  .panel--nav .panel__topbar,
   .panel__bottomnav {
     display: none;
   }

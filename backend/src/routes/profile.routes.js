@@ -31,7 +31,10 @@ const locationRule = body('location')
 
 const urlRule = (field, label) =>
   body(field)
-    .optional({ nullable: true })
+    // Opcional de verdad: el frontend siempre manda el campo (aunque sea ""),
+    // así que sin checkFalsy un perfil sin foto/logo quedaba bloqueado con
+    // "debe ser un enlace válido" y no se podía completar el onboarding.
+    .optional({ nullable: true, checkFalsy: true })
     .isString()
     .withMessage(`${label} debe ser texto`)
     .trim()
@@ -63,6 +66,11 @@ const updateValidators = [
     .trim()
     .isLength({ max: 600 })
     .withMessage('La descripción no puede superar 600 caracteres'),
+  body('whatsappNotificationsEnabled')
+    .optional()
+    .isBoolean()
+    .withMessage('La preferencia de WhatsApp debe ser verdadera o falsa')
+    .toBoolean(),
   urlRule('photoUrl', 'La foto'),
   // ---- barbería ----
   body('businessName')

@@ -9,6 +9,14 @@ process.env.NODE_ENV = 'test'
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'secreto-de-pruebas-solo-test'
 process.env.MONGODB_URI =
   process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/elysia_test'
+/*
+  La validación de correo por código se apaga AQUÍ y no en cada test: el resto
+  de las pruebas registran cuentas y las usan directamente, como si la
+  validación no existiera. El flujo completo lo cubre
+  `api-auth-verification.test.js`, que la enciende él mismo (se lee en cada
+  petición, no al importar el módulo).
+*/
+process.env.REQUIRE_EMAIL_VERIFICATION = 'false'
 
 /** 'YYYY-MM-DD' con dos dígitos. */
 function pad2(n) {

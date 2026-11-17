@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
+import Icon from '../../components/Icon.vue'
 
 const auth = useAuthStore()
 // computed: el perfil puede llegar después de montar (fetchMe en el guard)
@@ -17,56 +18,60 @@ const p = computed(() => auth.profile)
 
     <div class="panel-view__cards">
       <article class="panel-card">
-        <h2 class="panel-card__title">✂️ Servicios del negocio</h2>
+        <h2 class="panel-card__title"><Icon name="scissors" :size="18" /> Servicios del negocio</h2>
         <p class="panel-card__description">
           Administra los servicios generales de la barbería con sus precios y duraciones.
         </p>
         <RouterLink class="panel-card__nav" :to="{ name: 'barbershop-services' }">
-          Administrar servicios →
+          Administrar servicios <Icon name="arrow-right" :size="15" />
         </RouterLink>
       </article>
       <article class="panel-card">
-        <h2 class="panel-card__title">🕒 Horarios del negocio</h2>
+        <h2 class="panel-card__title"><Icon name="clock" :size="18" /> Horarios del negocio</h2>
         <p class="panel-card__description">
           Define los días y bloques de atención de la barbería y sus descansos.
         </p>
         <RouterLink class="panel-card__nav" :to="{ name: 'barbershop-schedule' }">
-          Administrar horarios →
+          Administrar horarios <Icon name="arrow-right" :size="15" />
         </RouterLink>
       </article>
       <article class="panel-card">
-        <h2 class="panel-card__title">📅 Agenda</h2>
+        <h2 class="panel-card__title"><Icon name="calendar" :size="18" /> Agenda</h2>
         <p class="panel-card__description">
           Consulta las citas del negocio por día o por semana y gestiona sus estados.
         </p>
         <RouterLink class="panel-card__nav" :to="{ name: 'barbershop-agenda' }">
-          Ver la agenda →
+          Ver la agenda <Icon name="arrow-right" :size="15" />
         </RouterLink>
       </article>
       <article v-if="p" class="panel-card">
-        <h2 class="panel-card__title">🏪 Tu negocio</h2>
+        <h2 class="panel-card__title"><Icon name="store" :size="18" /> Tu negocio</h2>
         <p class="panel-card__description">
-          📍 {{ p.location }}<br />
-          📞 {{ p.phone }}<br />
-          🕘 {{ p.settings?.openingTime }}–{{ p.settings?.closingTime }}
+          <Icon name="map-pin" :size="15" /> {{ p.location }}<br />
+          <Icon name="phone" :size="15" /> {{ p.phone }}<br />
+          <Icon name="clock" :size="15" /> {{ p.settings?.openingTime }}–{{ p.settings?.closingTime }}
           · citas de {{ p.settings?.appointmentDuration }} min<br />
-          💱 {{ p.settings?.currency }}
+          <Icon name="money" :size="15" /> {{ p.settings?.currency }}
         </p>
       </article>
       <article class="panel-card">
-        <h2 class="panel-card__title">💈 Equipo</h2>
+        <h2 class="panel-card__title"><Icon name="users" :size="18" /> Equipo</h2>
         <p class="panel-card__description">
           Agrega barberos y reparte turnos entre ellos en la próxima fase.
         </p>
       </article>
       <article class="panel-card">
-        <h2 class="panel-card__title">💰 Caja e informes</h2>
+        <h2 class="panel-card__title"><Icon name="wallet" :size="18" /> Caja e informes</h2>
         <p class="panel-card__description">
-          Cierre de caja, comisiones y reportes de ingresos, próximamente.
+          Abre la caja con fondo inicial, registra ingresos y egresos del día y cierra con
+          cuadre. Los cobros desde la agenda quedan aquí registrados.
         </p>
+        <RouterLink class="panel-card__nav" :to="{ name: 'barbershop-cash' }">
+          Abrir la caja <Icon name="arrow-right" :size="15" />
+        </RouterLink>
       </article>
       <article class="panel-card">
-        <h2 class="panel-card__title">📦 Inventario</h2>
+        <h2 class="panel-card__title"><Icon name="box" :size="18" /> Inventario</h2>
         <p class="panel-card__description">
           Control de productos y alertas de stock, próximamente.
         </p>

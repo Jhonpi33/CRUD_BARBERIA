@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import {
   useAppointmentsStore,
@@ -7,68 +7,109 @@ import {
   STATUS_ACTIONS,
   allowedTransitions,
 } from '../../stores/appointments'
-import Button from '../../components/Button.vue'
+import { useToastsStore } from '../../stores/toasts'
+import { useCashStore } from '../../stores/cash'
+import { waLink, waMessageLink } from '../../utils/whatsapp'
+import { mapsLink } from '../../utils/maps'
+import { dayjs, toISODate, moneyLabel } from '../../utils/datetime'
+import { es } from 'date-fns/locale'
+import Icon from '../../components/Icon.vue'
+
+/* Calendario (@vuepic/vue-datepicker) cargado bajo demanda: así no sumamos
+   ~230 kB al bundle inicial del home y solo se descarga al entrar al panel. */
+const VueDatePicker = defineAsyncComponent(async () => {
+  await import('@vuepic/vue-datepicker/dist/main.css')
+  const mod = await import('@vuepic/vue-datepicker')
+  return mod.VueDatePicker
+})
 
 const auth = useAuthStore()
 const store = useAppointmentsStore()
+const toast = useToastsStore()
+const cash = useCashStore()
 
-const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-const MONTH_NAMES = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-]
+const barberName = computed(
+  () =>
+    auth.profile?.professionalName ||
+    auth.profile?.businessName ||
+    auth.user?.name ||
+    'tu barbero'
+)
+
+const bookingUrl = computed(() => {
+  const slug = auth.profile?.slug
+  return slug ? `/u/${slug}/reservar?date=${selected.value}` : null
+})
+
+function waReminderLink(appt) {
+  const msg = `¡Hola ${appt.clientSnapshot.name}! 👋 Te recuerdo tu cita hoy a las ${appt.localStart} para ${appt.serviceSnapshot.name} con ${barberName.value}. ¡Te esperamos!`
+  return waMessageLink(appt.clientSnapshot.phone, msg)
+}
+
+/** Dirección del local del barbero (para los mensajes con ubicación). */
+const barberLocation = computed(() => (auth.profile?.location || '').trim())
+
+/**
+ * Añade la ubicación del local al final del mensaje, en formato enlace de
+ * mapa: el cliente lo toca en WhatsApp y llega directo (no un texto plano).
+ */
+function withMap(msg) {
+  if (!barberLocation.value) return msg
+  const link = mapsLink(barberLocation.value)
+  return `${msg}\n\n📍 Ubicación: ${barberLocation.value}${link ? `\n${link}` : ''}`
+}
+
+/** Al crear la reserva: aviso de solicitud recibida con fecha y hora. */
+function waRequestedLink(appt) {
+  const msg = `¡Hola ${appt.clientSnapshot.name}! Recibí tu solicitud de ${appt.serviceSnapshot.name} para el ${longLabel(appt.date)} a las ${appt.localStart} con ${barberName.value}. Te confirmo en un momento.`
+  return waMessageLink(appt.clientSnapshot.phone, withMap(msg))
+}
+
+function waReadyLink(appt) {
+  const msg = `¡Hola ${appt.clientSnapshot.name}! 💈 Tu turno para ${appt.serviceSnapshot.name} ya está listo. ¡Ya puedes pasar!`
+  return waMessageLink(appt.clientSnapshot.phone, msg)
+}
+
+/** Al confirmar: fecha, hora y ubicación en formato enlace de mapa. */
+function waConfirmedLink(appt) {
+  const msg = `¡Hola ${appt.clientSnapshot.name}! ✅ Tu cita para ${appt.serviceSnapshot.name} el ${longLabel(appt.date)} a las ${appt.localStart} con ${barberName.value} ha sido confirmada con éxito. ¡Nos vemos!`
+  return waMessageLink(appt.clientSnapshot.phone, withMap(msg))
+}
+
+/** Al rechazar/cancelar: aviso de que no fue posible agendar. */
+function waCancelledLink(appt) {
+  const msg = `¡Hola ${appt.clientSnapshot.name}! Lamento avisarte que no fue posible agendar tu cita de ${appt.serviceSnapshot.name} para el ${longLabel(appt.date)} a las ${appt.localStart}. Escríbeme y con gusto buscamos otro horario.`
+  return waMessageLink(appt.clientSnapshot.phone, withMap(msg))
+}
+
+function waDirectLink(appt) {
+  return waLink(appt.clientSnapshot.phone)
+}
 
 const mode = ref('day') // 'day' | 'week'
 const selected = ref(toISODate(new Date()))
-const success = ref('')
 
-/** Fecha local -> 'YYYY-MM-DD' (nunca usar toISOString: corre en UTC). */
-function toISODate(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function parseISO(iso) {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
-
+/* Toda la fecha pasa por dayjs (utils/datetime.js, locale español).
+   Ojo: dayjs lee 'YYYY-MM-DD' en HORA LOCAL; nunca usar toISOString. */
 function addDays(iso, n) {
-  const d = parseISO(iso)
-  d.setDate(d.getDate() + n)
-  return toISODate(d)
+  return dayjs(iso).add(n, 'day').format('YYYY-MM-DD')
 }
 
 /** Lunes (día 1) de la semana que contiene `iso`. */
 function mondayOf(iso) {
-  const d = parseISO(iso)
-  const dow = (d.getDay() + 6) % 7 // 0 = lunes
-  d.setDate(d.getDate() - dow)
-  return toISODate(d)
+  const d = dayjs(iso)
+  return d.subtract((d.day() + 6) % 7, 'day').format('YYYY-MM-DD')
 }
 
+/** Fecha larga para la cabecera y los mensajes: 'lunes 26 de octubre de 2026'. */
 function longLabel(iso) {
-  const d = parseISO(iso)
-  const dow = (d.getDay() + 6) % 7
-  const dayName = [
-    'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo',
-  ][dow]
-  return `${dayName} ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]} de ${d.getFullYear()}`
+  return dayjs(iso).format('dddd D [de] MMMM [de] YYYY')
 }
 
+/** 'Lun 26' para la vista semanal. */
 function shortLabel(iso) {
-  const d = parseISO(iso)
-  return `${DAY_NAMES[(d.getDay() + 6) % 7]} ${d.getDate()}`
-}
-
-function priceLabel(value) {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    maximumFractionDigits: 0,
-  }).format(Number(value))
+  const label = dayjs(iso).format('ddd D')
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 const weekDays = computed(() => {
@@ -83,6 +124,15 @@ const dayItems = computed(() => store.byDate[selected.value] || [])
 
 const isToday = computed(() => selected.value === toISODate(new Date()))
 
+/** La fecha seleccionada como Date, para el calendario de la librería. */
+const selectedDate = computed(() => dayjs(selected.value).toDate())
+
+/** Salta la agenda a la fecha elegida en el calendario. */
+function jumpTo(value) {
+  if (!value) return
+  selected.value = toISODate(value)
+}
+
 /** Rango a consultar según el modo (día suelto o semana completa). */
 const range = computed(() =>
   mode.value === 'week'
@@ -94,7 +144,6 @@ watch([mode, selected], load, { immediate: true })
 onMounted(() => load())
 
 async function load(force = false) {
-  success.value = ''
   store.clearError()
   await store.fetchRange(range.value.from, range.value.to, force)
 }
@@ -104,12 +153,30 @@ function move(delta) {
 }
 
 async function act(appointment, status) {
-  success.value = ''
   try {
     await store.changeStatus(appointment._id, status)
-    success.value = `Cita ${STATUS_LABELS[status].toLowerCase()}.`
+    toast.success(`Cita ${STATUS_LABELS[status].toLowerCase()}`)
   } catch {
-    /* el mensaje queda en store.error (transición rechazada por backend) */
+    // La transición la rechazó el backend (409): el motivo queda en store.error
+    toast.error('No se pudo cambiar la cita', store.error)
+  }
+}
+
+/**
+ * Cobra la cita en un clic: registra el ingreso en la caja abierta con el
+ * precio del servicio y lo vincula a la cita (el backend impide doble cobro).
+ * Si no hay caja abierta, el backend responde 409 y avisamos con su mensaje.
+ */
+async function charge(appointment) {
+  try {
+    await cash.chargeAppointment(appointment)
+    appointment.paid = true
+    toast.success(
+      'Cobro registrado',
+      `${appointment.serviceSnapshot.name} · ${moneyLabel(appointment.serviceSnapshot.price)}`
+    )
+  } catch {
+    toast.error('No se pudo cobrar', cash.error)
   }
 }
 
@@ -131,14 +198,25 @@ function statusClass(status) {
       <div>
         <h1 class="agenda__title">Mi agenda</h1>
         <p class="agenda__lead">
-          Aquí llegan las citas que tus clientes reservaron solos desde tu página.
+          Aquí llegan las citas que tus clientes reservaron desde tu perfil público.
           Confirma, completa o cancela cada una;
           los cambios de estado los valida el servidor.
         </p>
       </div>
-      <RouterLink class="btn btn--secondary btn--sm" :to="auth.panelPath">
-        ⬅ Volver al panel
-      </RouterLink>
+      <div class="agenda__header-actions">
+        <a
+          v-if="bookingUrl"
+          class="btn btn--primary btn--sm"
+          :href="bookingUrl"
+          target="_blank"
+          rel="noopener"
+        >
+          + Agendar cita
+        </a>
+        <RouterLink class="btn btn--secondary btn--sm" :to="auth.panelPath">
+          <Icon name="arrow-left" :size="16" /> Volver al panel
+        </RouterLink>
+      </div>
     </header>
 
     <!-- Controles -->
@@ -152,7 +230,7 @@ function statusClass(status) {
           :aria-selected="mode === 'day'"
           @click="mode = 'day'"
         >
-          📅 Día
+          <Icon name="calendar" :size="16" /> Día
         </button>
         <button
           class="agenda__mode"
@@ -162,7 +240,7 @@ function statusClass(status) {
           :aria-selected="mode === 'week'"
           @click="mode = 'week'"
         >
-          🗓 Semana
+          <Icon name="calendar" :size="16" /> Semana
         </button>
       </div>
 
@@ -176,6 +254,18 @@ function statusClass(status) {
         <button class="btn btn--secondary btn--sm" type="button" @click="move(1)">
           Siguiente ›
         </button>
+        <VueDatePicker
+          class="agenda__jump"
+          :model-value="selectedDate"
+          :locale="es"
+          :time-config="{ enableTimePicker: false }"
+          :formats="{ input: 'dd/MM/yyyy' }"
+          :teleport="true"
+          :input-attrs="{ clearable: false }"
+          placeholder="Ir a fecha…"
+          aria-label="Ir a una fecha"
+          @update:model-value="jumpTo"
+        />
       </div>
 
       <p class="agenda__date">
@@ -188,7 +278,6 @@ function statusClass(status) {
 
     <template v-else>
       <p v-if="store.error" class="form__error" role="alert">{{ store.error }}</p>
-      <p v-if="success" class="form__info" role="status">{{ success }}</p>
 
       <!-- Vista día -->
       <section v-if="mode === 'day'" class="agenda__card">
@@ -208,11 +297,100 @@ function statusClass(status) {
                 </p>
                 <p class="appt__meta">
                   {{ a.serviceSnapshot.name }} · {{ a.serviceSnapshot.durationMinutes }} min ·
-                  {{ priceLabel(a.serviceSnapshot.price) }}
+                  {{ moneyLabel(a.serviceSnapshot.price) }}
                 </p>
-                <p class="appt__phone">📞 {{ a.clientSnapshot.phone }}</p>
+                <!-- Ficha técnica privada del cliente (se ve al abrir la cita) -->
+                <p v-if="a.clientNotes" class="appt__notes">
+                  <span class="appt__notes-tag"><Icon name="clipboard" :size="14" /> Ficha</span>
+                  <span class="appt__notes-text">{{ a.clientNotes }}</span>
+                </p>
+                <div class="appt__contact">
+                  <a class="appt__phone" :href="`tel:${a.clientSnapshot.phone}`">
+                    <Icon name="phone" :size="15" /> {{ a.clientSnapshot.phone }}
+                  </a>
+                  <div class="appt__wa-group">
+                    <a
+                      v-if="waDirectLink(a)"
+                      class="appt__wa-btn"
+                      :href="waDirectLink(a)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Abrir chat en WhatsApp"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                      </svg>
+                      <span>Chat</span>
+                    </a>
+                    <a
+                      v-if="waRequestedLink(a) && a.status === 'pending'"
+                      class="appt__wa-btn appt__wa-btn--pill"
+                      :href="waRequestedLink(a)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Avisar al cliente que su solicitud fue recibida"
+                    >
+                      <Icon name="check-circle" :size="15" /> Recibido
+                    </a>
+                    <a
+                      v-if="waReminderLink(a) && ['pending', 'confirmed'].includes(a.status)"
+                      class="appt__wa-btn appt__wa-btn--pill"
+                      :href="waReminderLink(a)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Enviar recordatorio de turno por WhatsApp"
+                    >
+                      <Icon name="bell" :size="15" /> Recordar
+                    </a>
+                    <a
+                      v-if="waReadyLink(a) && a.status === 'confirmed'"
+                      class="appt__wa-btn appt__wa-btn--pill"
+                      :href="waReadyLink(a)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Avisar que su turno ya está listo"
+                    >
+                      <Icon name="scissors" :size="15" /> Ya puedes pasar
+                    </a>
+                    <a
+                      v-if="waConfirmedLink(a) && a.status === 'pending'"
+                      class="appt__wa-btn appt__wa-btn--pill"
+                      :href="waConfirmedLink(a)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Enviar confirmación de cita por WhatsApp"
+                    >
+                      <Icon name="check" :size="15" /> Confirmar
+                    </a>
+                    <a
+                      v-if="waCancelledLink(a) && a.status === 'cancelled'"
+                      class="appt__wa-btn appt__wa-btn--pill"
+                      :href="waCancelledLink(a)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Avisar al cliente que la cita no se agendó"
+                    >
+                      <Icon name="x" :size="15" /> Avisar cancelación
+                    </a>
+                  </div>
+                </div>
               </div>
-              <div v-if="allowedTransitions(a.status).length" class="appt__actions">
+              <div class="appt__actions">
+                <!-- Cobro en un clic (solo si la cita aún no está cobrada) -->
+                <button
+                  v-if="!a.paid && !['cancelled', 'no_show'].includes(a.status)"
+                  class="btn btn--sm appt__charge"
+                  type="button"
+                  :disabled="store.saving || cash.saving"
+                  title="Registrar el cobro de esta cita en la caja"
+                  @click="charge(a)"
+                >
+                  <Icon name="wallet" :size="15" /> Cobrar {{ moneyLabel(a.serviceSnapshot.price) }}
+                </button>
+                <span v-else-if="a.paid" class="appt__paid" title="Cobro registrado en caja">
+                  <Icon name="check" :size="15" /> Cobrado
+                </span>
+
                 <button
                   v-for="next in allowedTransitions(a.status)"
                   :key="next"
@@ -222,7 +400,8 @@ function statusClass(status) {
                   :disabled="store.saving"
                   @click="act(a, next)"
                 >
-                  {{ STATUS_ACTIONS[next].icon }} {{ STATUS_ACTIONS[next].label }}
+                  <Icon :name="STATUS_ACTIONS[next].icon" :size="15" />
+                  {{ STATUS_ACTIONS[next].label }}
                 </button>
               </div>
             </li>
@@ -263,6 +442,13 @@ function statusClass(status) {
   gap: var(--space-4);
   flex-wrap: wrap;
   margin-bottom: var(--space-5);
+}
+
+.agenda__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .agenda__title {
@@ -313,6 +499,29 @@ function statusClass(status) {
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Calendario para saltar a cualquier fecha (@vuepic/vue-datepicker) */
+.agenda__jump {
+  width: 170px;
+  --dp-font-family: var(--font-body);
+  --dp-font-size: var(--font-size-sm);
+  --dp-border-radius: var(--radius-md);
+  --dp-border-color: var(--color-border);
+  --dp-input-height: 36px;
+  --dp-input-color: var(--color-text);
+  --dp-input-background-color: var(--color-surface);
+  --dp-input-icon-color: var(--color-text-muted);
+  --dp-placeholder-color: var(--color-text-muted);
+  --dp-menu-min-width: 290px;
+  --dp-cell-size: 36px;
+  --dp-primary-color: var(--color-primary);
+  --dp-primary-disabled-color: var(--accent-soft);
+  --dp-highlight-color: var(--accent-soft);
+  --dp-hover-color: var(--surface-2);
+  --dp-day-name-color: var(--color-text-muted);
+  --dp-text-color: var(--color-text);
 }
 
 .agenda__date {
@@ -401,16 +610,115 @@ function statusClass(status) {
   margin-top: var(--space-1);
 }
 
+/* Ficha técnica privada del cliente (visible al abrir la cita) */
+.appt__notes {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.appt__notes-tag {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.appt__notes-text {
+  color: var(--text-muted);
+}
+
+.appt__contact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
 .appt__phone {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.appt__phone:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.appt__wa-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.appt__wa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(37, 211, 102, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(37, 211, 102, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.appt__wa-btn:hover {
+  background: #25d366;
+  color: #ffffff;
+}
+
+.appt__wa-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.appt__wa-btn--pill {
+  border-radius: var(--radius-full);
 }
 
 .appt__actions {
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Botón de cobro (verde, un clic => ingreso en caja) */
+.appt__charge {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
+.appt__charge:hover:not(:disabled) {
+  background: #15803d;
+  border-color: #15803d;
+  color: #ffffff;
+}
+
+/* Badge de cita ya cobrada */
+.appt__paid {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  white-space: nowrap;
 }
 
 .appt__badge {

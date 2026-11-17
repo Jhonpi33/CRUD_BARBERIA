@@ -14,6 +14,36 @@ import { utcToWallClock } from './timezone.js'
 /** Granularidad de agenda (inicio de los intervalos). Distinta de la duración. */
 export const STEP_MINUTES = 15
 
+/** Margen por defecto de cambio de turno cuando el servicio no lo define. */
+export const DEFAULT_BUFFER_MINUTES = 10
+
+/**
+ * Expande cada rango ocupado `bufferMinutes` minutos hacia ambos lados.
+ *
+ * Así, entre dos citas (y entre una cita y cualquier inicio propuesto) queda
+ * SIEMPRE ese aire: cambio de turno, limpieza, espera del siguiente cliente.
+ * No es parte de la duración que ve el cliente: la cita termina a su hora
+ * real, solo se protege el hueco de alrededor.
+ *
+ * `bufferMinutes` ausente o no entero => 10 por defecto; 0 => sin margen.
+ *
+ * @param {Array<{startMinutes:number,endMinutes:number}>} busyRanges
+ * @param {number} [bufferMinutes] minutos de margen (0..120)
+ * @returns los mismos rangos expandidos (nueva lista, sin mutar la original)
+ */
+export function expandBusyRanges(busyRanges, bufferMinutes = DEFAULT_BUFFER_MINUTES) {
+  if (!Array.isArray(busyRanges) || busyRanges.length === 0) return []
+  const buffer =
+    Number.isInteger(bufferMinutes) && bufferMinutes >= 0 ? bufferMinutes : DEFAULT_BUFFER_MINUTES
+  if (buffer === 0) return busyRanges
+
+  return busyRanges.map((b) => ({
+    ...b,
+    startMinutes: Math.max(0, b.startMinutes - buffer),
+    endMinutes: b.endMinutes + buffer,
+  }))
+}
+
 /** Clave de slot discreto para el índice único: 'YYYY-MM-DDTHH:MM'. */
 export function slotKey(date, startMinutes) {
   return `${date}T${minutesToTime(startMinutes)}`

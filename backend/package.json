@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1",
+    "seed:admin": "node src/scripts/seedAdmin.js",
+    "seed:dev": "node src/scripts/seedDev.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

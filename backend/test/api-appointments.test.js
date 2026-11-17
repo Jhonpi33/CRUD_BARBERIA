@@ -168,9 +168,27 @@ describe('Reserva pública (POST /api/public/booking/:slug)', () => {
       'GET',
       `/api/public/booking/dueno-agenda/availability?serviceId=${owner.serviceId}&date=${MON}`
     )
-    // 08:00 ya no está; el primero libre empieza a las 08:30 o después.
+    // 08:00 ya no está; tampoco 08:30, que queda DENTRO del margen de
+    // cambio de turno (10 min) que rodea a la cita de 08:00-08:30.
     const starts = r.data.slots.map((s) => s.start)
     assert.ok(!starts.includes('08:00'), '08:00 debe estar ocupado')
+    assert.ok(!starts.includes('08:30'), '08:30 debe estar dentro del margen')
+    assert.ok(starts.includes('08:45'), 'a las 08:45 ya hay aire suficiente')
+    assert.equal(r.data.bufferMinutes, 10)
+  })
+
+  test('reservar justo al terminar otra cita (sin margen) => 409', async () => {
+    const r = await req('POST', '/api/public/booking/dueno-agenda', {
+      body: {
+        serviceId: owner.serviceId,
+        date: MON,
+        start: '08:30',
+        name: 'Cliente Sin Aire',
+        phone: '+57 311 777 6655',
+      },
+    })
+    assert.equal(r.status, 409)
+    assert.equal(r.data.code, 'SLOT_UNAVAILABLE')
   })
 
   test('reservar un hueco ya ocupado => 409', async () => {
@@ -342,8 +360,9 @@ describe('Control de concurrencia (el corazón de la Fase 5)', () => {
   })
 
   test('N peticiones simultáneas para huecos DISTINTOS: todas crean', async () => {
-    // 08:30, 09:00, 09:30, 10:00 (libres tras la prueba anterior).
-    const horas = ['08:30', '09:00', '09:30', '10:00']
+    // Con margen de 10 min y duración de 30, dos inicios deben quedar al
+    // menos 45 min (cuadrícula de 15) uno del otro: 08:45, 09:30, 10:15.
+    const horas = ['08:45', '09:30', '10:15']
     const results = await Promise.all(
       horas.map((h, i) =>
         req('POST', '/api/public/booking/concurrencia', {
@@ -541,5 +560,63 @@ describe('Clientes', () => {
     const otro = await createOwner({ slug: 'otro-clientes' })
     const r = await req('GET', `/api/clients/${id}`, { token: otro.token })
     assert.equal(r.status, 404)
+  })
+
+  test('la lista trae stats de cada cliente (visitas, gasto, próxima cita)', async () => {
+    const antes = await req('GET', '/api/clients', { token: owner.token })
+    const c = antes.data.clients.find((x) => x.name === 'Carla')
+    assert.ok(c, 'Carla debería estar en la lista')
+    assert.equal(c.stats.total, 1)
+    assert.equal(c.stats.visits, 0)
+    assert.equal(c.stats.spent, 0)
+    assert.equal(c.stats.lastVisit, null)
+    assert.ok(c.stats.nextVisit, 'con cita pendiente debe venir nextVisit')
+
+    // Al completar la cita pasa a visita realizada y suma el gasto.
+    const detalle = await req('GET', `/api/clients/${c._id}`, { token: owner.token })
+    const apptId = detalle.data.appointments[0]._id
+    const conf = await req('PATCH', `/api/appointments/${apptId}/status`, {
+      token: owner.token,
+      body: { status: 'confirmed' },
+    })
+    assert.equal(conf.status, 200)
+    const comp = await req('PATCH', `/api/appointments/${apptId}/status`, {
+      token: owner.token,
+      body: { status: 'completed' },
+    })
+    assert.equal(comp.status, 200)
+
+    const despues = await req('GET', '/api/clients', { token: owner.token })
+    const c2 = despues.data.clients.find((x) => x.name === 'Carla')
+    assert.equal(c2.stats.visits, 1)
+    assert.equal(c2.stats.spent, 15000)
+    assert.ok(c2.stats.lastVisit, 'debe registrar la última visita')
+    assert.equal(c2.stats.nextVisit, null, 'sin cita futura => nextVisit null')
+  })
+
+  test('todos los clientes de la lista traen stats completos', async () => {
+    // Crea un segundo cliente vía reserva y no toca su cita.
+    const booking = await req('POST', '/api/public/booking/clientes-agenda', {
+      body: {
+        serviceId: owner.serviceId,
+        date: futureWeekday(1),
+        start: '09:00',
+        name: 'Sin Citas',
+        phone: '+57 340 999 8888',
+      },
+    })
+    assert.equal(booking.status, 201)
+
+    const lista = await req('GET', '/api/clients', { token: owner.token })
+    const nuevo = lista.data.clients.find((x) => x.name === 'Sin Citas')
+    assert.ok(nuevo)
+    assert.equal(nuevo.stats.total, 1)
+    assert.equal(nuevo.stats.visits, 0)
+    assert.equal(nuevo.stats.spent, 0)
+    assert.ok(nuevo.stats.nextVisit)
+
+    // Todos los clientes deben traer el objeto stats (nunca undefined).
+    const vacio = lista.data.clients.map((x) => x.stats).filter(Boolean)
+    assert.equal(vacio.length, lista.data.clients.length, 'todos deben traer stats')
   })
 })

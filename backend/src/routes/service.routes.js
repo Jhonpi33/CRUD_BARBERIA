@@ -50,6 +50,12 @@ const durationRules = body('durationMinutes')
   .isInt({ min: 10, max: 240 })
   .withMessage('La duración debe ser un entero entre 10 y 240 minutos')
 
+// Opcional: si no llega, mantiene el valor guardado (o el 10 por defecto).
+const bufferRules = body('bufferMinutes')
+  .optional({ nullable: true })
+  .isInt({ min: 0, max: 120 })
+  .withMessage('El margen de cambio de turno debe ser un entero entre 0 y 120 minutos')
+
 /*
  * El formato del :id se comprueba en el controlador (=> 400 si está mal
  * formado); la propiedad del recurso también se comprueba allí (=> 404).
@@ -61,7 +67,7 @@ router.get('/', listServices)
 /** POST /api/services */
 router.post(
   '/',
-  validate([nameRules, descriptionRules, priceRules, durationRules]),
+  validate([nameRules, descriptionRules, priceRules, durationRules, bufferRules]),
   createService
 )
 
@@ -71,7 +77,7 @@ router.get('/:id', getService)
 /** PUT /api/services/:id */
 router.put(
   '/:id',
-  validate([nameRules, descriptionRules, priceRules, durationRules]),
+  validate([nameRules, descriptionRules, priceRules, durationRules, bufferRules]),
   updateService
 )
 

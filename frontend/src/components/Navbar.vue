@@ -36,7 +36,7 @@ function onLogout() {
 
       <template v-else>
         <RouterLink to="/login">Iniciar sesión</RouterLink>
-        <RouterLink class="navbar__cta" to="/register">Crear cuenta</RouterLink>
+        <RouterLink class="navbar__cta" to="/registro">Crear cuenta</RouterLink>
       </template>
     </nav>
   </header>

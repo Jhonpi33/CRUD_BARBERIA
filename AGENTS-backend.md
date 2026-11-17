@@ -7,8 +7,8 @@ SaaS para automatizar y gestionar negocios de barbería. Dos tipos de cuenta: `b
 Node.js, Express, Mongoose (MongoDB), JWT (jsonwebtoken), bcryptjs, helmet, cors, express-rate-limit, express-validator, dotenv. JavaScript con ES Modules.
 
 ## Alcance ACTUAL
-Auth (registro, login, /me, elegir rol) y luego Profile del barbero.
-NO construir todavía: citas, clientes, WhatsApp, IA, pagos, inventario.
+Auth (registro, login, /me, elegir rol, recuperación de contraseña), Profile de barbero/barbería, Services, Schedule, Availability, Public Booking, Appointments, Clients (con notas privadas), Cash (`/api/cash`: sesiones con apertura/cierre, movimientos y cobro de citas) y Notifications.
+NO construir todavía: pasarelas de pago en línea, inventario, reportes financieros avanzados (comisiones/utilidades), IA, ni módulo multiempleado de barbería.
 
 ## Estructura
 src/

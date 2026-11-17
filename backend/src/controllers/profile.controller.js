@@ -89,6 +89,7 @@ export async function upsertMyProfile(req, res, next) {
             professionalName: b.professionalName,
             photoUrl: b.photoUrl,
             description: b.description,
+            whatsappNotificationsEnabled: b.whatsappNotificationsEnabled,
           }
         : {
             phone: b.phone,

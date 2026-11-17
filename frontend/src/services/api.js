@@ -7,7 +7,9 @@ import axios from 'axios'
 const TOKEN_KEY = 'elysia_token'
 
 const api = axios.create({
-  baseURL: '/api',
+  // En desarrollo se usa el proxy /api de Vite; en producción puede
+  // configurarse una URL absoluta si el frontend y la API van separados.
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 15000,
 })
 

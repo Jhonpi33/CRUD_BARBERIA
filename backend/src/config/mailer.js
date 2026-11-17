@@ -1,12 +1,11 @@
 import nodemailer from 'nodemailer'
+import { isGmailConfigured, sendGmail } from './gmail.js'
 
 /**
- * Cliente de correo saliente (SMTP) para avisos al barbero.
+ * Cliente de correo saliente por SMTP o Gmail API.
  *
  * Diseño:
- * - Desactivado por defecto: si faltan variables de entorno (SMTP_HOST,
- *   SMTP_USER y SMTP_PASS), `isEnabled()` devuelve false y `sendMail()` no
- *   hace nada. Así el sistema sigue funcionando sin correo configurado.
+ * - Desactivado si faltan las variables del transporte seleccionado.
  * - Best-effort: `sendMail()` nunca lanza; devuelve un objeto con `sent`,
  *   `skipped` o `error` para que el llamador decida qué registrar.
  * - Transporte inyectable con `setTransport()` para las pruebas (no hace
@@ -16,8 +15,9 @@ import nodemailer from 'nodemailer'
 let transporter = null
 
 /** Variables mínimas para considerar el correo configurado. */
-function smtpConfigured() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+export function isMailConfigured(env = process.env) {
+  if (env.MAIL_TRANSPORT === 'gmail-api') return isGmailConfigured(env)
+  return Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS)
 }
 
 function buildTransporter() {
@@ -28,6 +28,9 @@ function buildTransporter() {
     host: process.env.SMTP_HOST,
     port,
     secure,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
@@ -37,7 +40,7 @@ function buildTransporter() {
 
 /** ¿Hay correo configurado en este entorno? */
 export function isEnabled() {
-  return smtpConfigured() || transporter !== null
+  return isMailConfigured() || transporter !== null
 }
 
 /**
@@ -59,14 +62,19 @@ export async function sendMail({ to, subject, text, html }) {
     return { sent: false, skipped: true, reason: 'sin destinatario' }
   }
 
-  if (!smtpConfigured() && transporter === null) {
-    return { sent: false, skipped: true, reason: 'correo no configurado (faltan SMTP_* en el entorno)' }
+  if (!isEnabled()) {
+    return { sent: false, skipped: true, reason: 'correo no configurado' }
   }
 
   try {
-    const tx = transporter ?? (transporter = buildTransporter())
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER
-    await tx.sendMail({ from, to, subject, text, html })
+    if (process.env.MAIL_TRANSPORT === 'gmail-api' && transporter === null) {
+      const from = process.env.GMAIL_FROM || process.env.GMAIL_USER
+      await sendGmail({ from, to, subject, text, html })
+    } else {
+      const tx = transporter ?? buildTransporter()
+      const from = process.env.SMTP_FROM || process.env.SMTP_USER
+      await tx.sendMail({ from, to, subject, text, html })
+    }
     return { sent: true }
   } catch (err) {
     return { sent: false, error: err }

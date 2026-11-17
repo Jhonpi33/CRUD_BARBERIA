@@ -7,45 +7,45 @@ const route = useRoute()
 const docs = {
   privacidad: {
     title: 'Política de privacidad',
-    updated: 'Última actualización: octubre de 2026',
+    updated: 'Borrador informativo del piloto · 10 de noviembre de 2026',
     sections: [
       {
         heading: 'Qué datos recopilamos',
-        body: 'Al crear tu cuenta recopilamos tu nombre, correo electrónico y una versión cifrada de tu contraseña. A medida que usas Elysia también guardamos la información de tu barbería: servicios, precios, clientes y turnos.',
+        body: 'Elysia procesa el nombre y correo de la cuenta; los datos del perfil profesional, servicios y horarios; y la información que se registra al reservar, como nombre, teléfono, cita y servicio. Si usas la caja o las notas privadas, también se guardan esos movimientos y notas.',
       },
       {
         heading: 'Cómo usamos tus datos',
-        body: 'Usamos tus datos únicamente para operar el servicio: mostrarte tu agenda, enviar recordatorios a tus clientes y generar reportes de tu negocio. Nunca vendemos tus datos ni los cedemos a terceros con fines publicitarios.',
+        body: 'Los usamos para operar la cuenta, publicar el perfil, administrar reservas y agenda, mostrar el historial a la barbería correspondiente y prestar las funciones del piloto. Los mensajes de WhatsApp no se envían solos: el barbero los revisa y los envía manualmente.',
       },
       {
         heading: 'Seguridad',
-        body: 'Las contraseñas se almacenan cifradas y todas las comunicaciones viajan por conexión segura (HTTPS). El acceso a la información de tu cuenta está limitado a ti y a los usuarios que autorices explícitamente.',
+        body: 'Las contraseñas no se guardan en texto legible: se almacenan mediante hash con bcrypt. El servicio debe publicarse y usarse por HTTPS. Cada barbero autenticado solo debe acceder a los recursos de su propia cuenta.',
       },
       {
         heading: 'Tus derechos',
-        body: 'Puedes solicitar la exportación o eliminación de tus datos escribiéndonos. Al eliminar tu cuenta, la información personal se borra de nuestros sistemas en un plazo razonable.',
+        body: 'Para que este documento pueda usarse con clientes reales, el responsable de Elysia debe completar aquí su nombre o razón social, identificación, correo de contacto y el canal para atender solicitudes sobre datos personales. La retención, eliminación y exportación deben confirmarse antes de activar el piloto.',
       },
     ],
   },
   terminos: {
     title: 'Términos del servicio',
-    updated: 'Última actualización: octubre de 2026',
+    updated: 'Borrador informativo del piloto · 10 de noviembre de 2026',
     sections: [
       {
         heading: 'Uso del servicio',
-        body: 'Elysia es una plataforma de gestión para barberías. Al crear una cuenta te comprometes a usarla de forma legítina y a mantener la confidencialidad de tus credenciales.',
+        body: 'Elysia ofrece a barberos independientes un perfil público, servicios, horarios, reservas, agenda, directorio de clientes y caja básica. El piloto se dirige a participantes de San Gil, Curití y Socorro, Santander.',
       },
       {
         heading: 'Planes y pagos',
-        body: 'Los planes son de pago mensual y pueden cancelarse en cualquier momento desde el panel, sin permanencia mínima. Los precios pueden actualizarse avisando con anticipación.',
+        body: 'El precio del piloto es de $20.000 COP por mes. El registro en la web no cobra; la activación y el pago se coordinan directamente. Elysia no procesa pagos en línea ni ofrece actualmente una cancelación desde el panel. Cualquier precio futuro debe comunicarse antes de aplicarse.',
       },
       {
         heading: 'Responsabilidad sobre los datos',
-        body: 'Tú eres responsable de la información que registras en Elysia (servicios, precios y datos de tus clientes) y de contar con la autorización necesaria de tus clientes para tratar sus datos.',
+        body: 'El barbero debe registrar información necesaria para prestar sus servicios y comunicar a sus clientes cómo se usa. No registres datos sensibles en las notas. El responsable del tratamiento debe definir y publicar el procedimiento para consultas o solicitudes de los titulares antes del piloto con datos reales.',
       },
       {
         heading: 'Limitación del servicio',
-        body: 'Elysia se ofrece "tal cual". No garantizamos la ausencia total de interrupciones, pero trabajamos para mantener el servicio disponible y tus datos seguros.',
+        body: 'Este texto es un borrador de producto y no reemplaza los términos finales del servicio. Antes de abrir el registro al público, completa la identidad y contacto del proveedor, disponibilidad del servicio, tratamiento de datos, soporte y procedimiento de cierre de cuenta.',
       },
     ],
   },

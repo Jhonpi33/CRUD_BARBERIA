@@ -10,6 +10,8 @@ import {
   computeFreeSlots,
   busyRangeFromAppointment,
   busyRangesFromAppointments,
+  expandBusyRanges,
+  DEFAULT_BUFFER_MINUTES,
   isSlotInPast,
   filterPastSlots,
 } from '../src/utils/booking.js'
@@ -71,6 +73,91 @@ describe('booking — occupiedSlotKeys', () => {
     assert.equal(slotKey('2026-10-19', 480), '2026-10-19T08:00')
     assert.equal(slotKey('2026-10-19', 59), '2026-10-19T00:59')
     assert.equal(slotKey('2026-10-19', 1439), '2026-10-19T23:59')
+  })
+})
+
+describe('booking — expandBusyRanges (margen de cambio de turno)', () => {
+  test('expande el rango hacia ambos lados', () => {
+    const out = expandBusyRanges([{ startMinutes: 480, endMinutes: 510 }], 10)
+    assert.deepEqual(out, [{ startMinutes: 470, endMinutes: 520 }])
+  })
+
+  test('sin valor explícito usa el margen por defecto (10)', () => {
+    const out = expandBusyRanges([{ startMinutes: 480, endMinutes: 510 }])
+    assert.deepEqual(out, [{ startMinutes: 470, endMinutes: 520 }])
+    assert.equal(DEFAULT_BUFFER_MINUTES, 10)
+  })
+
+  test('buffer 0 devuelve los rangos tal cual (sin aire)', () => {
+    const ranges = [{ startMinutes: 480, endMinutes: 510 }]
+    assert.deepEqual(expandBusyRanges(ranges, 0), ranges)
+  })
+
+  test('lista vacía o no-array => lista vacía', () => {
+    assert.deepEqual(expandBusyRanges([], 10), [])
+    assert.deepEqual(expandBusyRanges(undefined, 10), [])
+    assert.deepEqual(expandBusyRanges(null, 10), [])
+  })
+
+  test('no muta la lista original', () => {
+    const ranges = [{ startMinutes: 480, endMinutes: 510 }]
+    expandBusyRanges(ranges, 15)
+    assert.deepEqual(ranges, [{ startMinutes: 480, endMinutes: 510 }])
+  })
+
+  test('el inicio expandido nunca baja de 0 minutos', () => {
+    const out = expandBusyRanges([{ startMinutes: 5, endMinutes: 30 }], 10)
+    assert.equal(out[0].startMinutes, 0)
+  })
+
+  test('con el margen, un inicio ADYACENTE queda bloqueado', () => {
+    // Cita existente 08:00-08:30 con margen 10 => aire 07:50-08:40.
+    const busy = expandBusyRanges([{ startMinutes: 480, endMinutes: 510 }], 10)
+    // 08:30-09:00 empieza justo cuando termina la otra: con margen NO vale.
+    assert.equal(
+      filterBusySlots(
+        [{ start: '08:30', end: '09:00', startMinutes: 510, endMinutes: 540 }],
+        busy
+      ).length,
+      0
+    )
+  })
+
+  test('con el margen, un inicio con 10 min de aire SÍ está libre', () => {
+    const busy = expandBusyRanges([{ startMinutes: 480, endMinutes: 510 }], 10)
+    // 08:40-09:10 empieza exactamente al terminar el aire: permitido.
+    const libre = filterBusySlots(
+      [{ start: '08:40', end: '09:10', startMinutes: 520, endMinutes: 550 }],
+      busy
+    )
+    assert.equal(libre.length, 1)
+  })
+
+  test('el margen también separa lo que TERMINA junto a otra cita', () => {
+    // Existe 09:00-09:30; proponer 08:30-09:00 deja 0 min de aire.
+    const busy = expandBusyRanges([{ startMinutes: 540, endMinutes: 570 }], 10)
+    assert.equal(
+      filterBusySlots(
+        [{ start: '08:30', end: '09:00', startMinutes: 510, endMinutes: 540 }],
+        busy
+      ).length,
+      0
+    )
+    // 08:20-08:50 deja 10 min de aire => sí está libre.
+    assert.equal(
+      filterBusySlots(
+        [{ start: '08:20', end: '08:50', startMinutes: 500, endMinutes: 530 }],
+        busy
+      ).length,
+      1
+    )
+  })
+
+  test('un índice de claves con margen impide reservar dentro del aire', () => {
+    // Duración 30 + margen 10 => bloquea 08:00, 08:15 y 08:30.
+    const claves = occupiedSlotKeys('2026-10-19', 480, 30 + 10, 15)
+    assert.ok(claves.includes('2026-10-19T08:30'), '08:30 debe quedar bloqueado')
+    assert.ok(!claves.includes('2026-10-19T08:45'), '08:45 sigue libre')
   })
 })
 

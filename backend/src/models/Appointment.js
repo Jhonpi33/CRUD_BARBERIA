@@ -62,7 +62,9 @@ const appointmentSchema = new mongoose.Schema(
     clientSnapshot: {
       name: { type: String, required: true, maxlength: 120 },
       phone: { type: String, required: true, maxlength: 40 },
+      whatsappOptIn: { type: Boolean, default: false },
     },
+    locationSnapshot: { type: String, trim: true, maxlength: 160, default: '' },
 
     // --- Tiempo (ver comentario superior) ---
     date: {
@@ -103,7 +105,7 @@ const appointmentSchema = new mongoose.Schema(
     // Quién originó la reserva (cliente por link público, o el dueño).
     source: {
       type: String,
-      enum: ['public', 'owner'],
+      enum: ['public', 'owner', 'agent'],
       default: 'public',
     },
     notes: { type: String, trim: true, maxlength: 300, default: '' },

@@ -1,11 +1,15 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, friendlyAuthError } from '../stores/auth'
 import Button from '../components/Button.vue'
+import Icon from '../components/Icon.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+
+/** true = el perfil ya existe (se vino a editar); false = lo está creando. */
+const isEditing = computed(() => Boolean(auth.profile?.completedAt))
 
 const form = reactive({
   businessName: '',
@@ -100,17 +104,31 @@ async function onFinish() {
 
 <template>
   <div class="onboarding">
-    <p class="onboarding__step">Paso 1 de 1 · Perfil de barbería</p>
-    <div
-      class="onboarding__progress"
-      role="progressbar"
-      aria-valuenow="1"
-      aria-valuemin="1"
-      aria-valuemax="1"
-      aria-label="Progreso del formulario"
-    >
-      <span class="onboarding__progress-bar" style="width: 100%"></span>
+    <!-- Siempre hay salida: al panel si ya existe el perfil, al inicio si lo está creando -->
+    <div class="onboarding__nav-top">
+      <RouterLink
+        class="btn btn--secondary btn--sm"
+        :to="isEditing ? '/panel/barberia' : '/'"
+      >
+        <Icon name="arrow-left" :size="16" />
+        {{ isEditing ? 'Volver al panel' : 'Volver al inicio' }}
+      </RouterLink>
     </div>
+
+    <template v-if="!isEditing">
+      <p class="onboarding__step">Paso 1 de 1 · Perfil de barbería</p>
+      <div
+        class="onboarding__progress"
+        role="progressbar"
+        aria-valuenow="1"
+        aria-valuemin="1"
+        aria-valuemax="1"
+        aria-label="Progreso del formulario"
+      >
+        <span class="onboarding__progress-bar" style="width: 100%"></span>
+      </div>
+    </template>
+
     <h1 class="onboarding__title">Configura tu barbería</h1>
     <p class="onboarding__lead">
       Estos datos identifican tu negocio y definen cómo agenda. Puedes guardarlo a medias y
@@ -230,6 +248,11 @@ async function onFinish() {
 <style scoped>
 .onboarding {
   text-align: left;
+}
+
+/* Flecha de salida (crear perfil o volver al panel) */
+.onboarding__nav-top {
+  margin-bottom: var(--space-4);
 }
 
 .onboarding__step {

@@ -18,12 +18,23 @@ const redirectTarget = computed(() => {
 })
 
 async function onSubmit() {
+  if (auth.loading) return
   error.value = ''
   try {
     const user = await auth.login({ email: form.email, password: form.password })
     router.push(redirectTarget.value || auth.panelPath)
     return user
   } catch (err) {
+    // Cuenta creada y sin verificar: en vez de un error, seguimos al código.
+    const data = err?.response?.data
+    if (data?.code === 'EMAIL_NOT_VERIFIED') {
+      const pendiente = data.email || form.email
+      auth.setPendingVerification({ email: pendiente, devCode: null })
+      const query = { email: pendiente }
+      if (redirectTarget.value) query.redirect = redirectTarget.value
+      router.push({ path: '/verificar-correo', query })
+      return
+    }
     error.value = friendlyAuthError(err)
   }
 }
@@ -70,7 +81,7 @@ async function onSubmit() {
     </p>
     <p class="auth-form__link">
       ¿No tienes cuenta?
-      <RouterLink to="/register">Créala gratis</RouterLink>
+      <RouterLink to="/registro">Crea una cuenta</RouterLink>
     </p>
   </div>
 </template>
