@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import { getBookingData, isConnectionError } from '../services/bookingConnection'
 import Button from '../components/Button.vue'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
@@ -18,6 +19,14 @@ const booking = ref(false)
 const error = ref('')
 const profile = ref(null)
 const services = ref([])
+const connectionWaiting = ref(false)
+const slotsWaiting = ref(false)
+const profileRetryable = ref(false)
+const slotsRetryable = ref(false)
+const bookingUncertain = ref(false)
+let profileController
+let slotsController
+let profileVersion = 0
 
 // Selección
 const serviceId = ref(String(route.query.serviceId || ''))
@@ -72,6 +81,10 @@ function longDate(iso) {
 
 /** Enlace de mapa con la dirección del local (null si no hay dirección). */
 const mapUrl = computed(() => mapsLink(profile.value?.location))
+const bookingCheckLink = computed(() => waMessageLink(
+  profile.value?.phone,
+  `Hola, soy ${form.value.name.trim()}. Intenté reservar ${selectedService.value?.name || 'un servicio'} el ${longDate(date.value)} a las ${start.value}. ¿Puedes comprobar si recibiste mi reserva?`
+))
 
 /**
  * Mensaje con todos los datos de la cita (fecha, hora y ubicación en formato
@@ -141,26 +154,56 @@ const selectedSlot = computed(
   () => slots.value.find((s) => s.start === start.value) || null
 )
 
-onMounted(async () => {
+async function loadProfile() {
+  const version = ++profileVersion
+  profileController?.abort()
+  slotsController?.abort()
+  const controller = new AbortController()
+  profileController = controller
+  loading.value = true
+  profile.value = null
+  services.value = []
+  done.value = null
+  slots.value = []
+  start.value = ''
+  confirmOpen.value = false
+  bookingUncertain.value = false
+  error.value = ''
+  connectionWaiting.value = false
+  profileRetryable.value = false
   try {
-    const { data } = await api.get(
-      `/public/booking/${encodeURIComponent(slug.value)}`
+    const { data } = await getBookingData(
+      `/public/booking/${encodeURIComponent(slug.value)}`,
+      { signal: controller.signal, onWaiting: () => { connectionWaiting.value = true } }
     )
+    if (version !== profileVersion || controller.signal.aborted) return
     profile.value = data.profile
     services.value = data.services
+    if (serviceId.value && !services.value.some(service => service._id === serviceId.value)) {
+      serviceId.value = ''
+    }
+    await reloadSlots()
   } catch (err) {
+    if (version !== profileVersion || controller.signal.aborted) return
+    profileRetryable.value = isConnectionError(err)
     error.value =
-      err?.response?.data?.message || 'Este perfil no acepta reservas en línea.'
+      profileRetryable.value ? 'La agenda está tardando en responder. Intenta conectarte de nuevo.' :
+        err?.response?.data?.message || 'Este perfil no acepta reservas en línea.'
   } finally {
-    loading.value = false
+    if (version === profileVersion && !controller.signal.aborted) loading.value = false
   }
+}
+
+watch(slug, loadProfile, { immediate: true })
+onBeforeUnmount(() => {
+  profileController?.abort()
+  slotsController?.abort()
 })
 
 /** Cambiar de servicio o fecha recarga los huecos reales del servidor. */
-watch([serviceId, date], async ([svc, d]) => {
+watch([serviceId, date], async () => {
   slots.value = []
   start.value = ''
-  if (!svc || !d) return
   await reloadSlots()
 })
 
@@ -194,6 +237,7 @@ function goToStep(index) {
  * cliente acepta en ese modal.
  */
 function submitForm() {
+  if (booking.value || bookingUncertain.value || done.value) return
   touched.value = { name: true, phone: true }
   error.value = ''
   confirmError.value = ''
@@ -207,6 +251,7 @@ function submitForm() {
 
 /** Crea la cita en el servidor (se llama desde el modal de confirmación). */
 async function confirmBooking() {
+  if (booking.value || bookingUncertain.value || done.value) return
   confirmError.value = ''
   error.value = ''
   booking.value = true
@@ -220,7 +265,8 @@ async function confirmBooking() {
         name: form.value.name.trim(),
         phone: form.value.phone.trim(),
         whatsappOptIn: form.value.whatsappOptIn,
-      }
+      },
+      { timeout: 90000 }
     )
     confirmOpen.value = false
     done.value = data.appointment
@@ -234,7 +280,10 @@ async function confirmBooking() {
       start.value = ''
       await reloadSlots()
     } else {
-      confirmError.value = body?.message || 'No se pudo completar la reserva.'
+      bookingUncertain.value = isConnectionError(err) || !err?.response || err.response.status >= 500
+      confirmError.value = bookingUncertain.value
+        ? 'Se perdió la conexión y no pudimos comprobar si tu reserva quedó guardada. Consulta con el barbero antes de volver a reservar.'
+        : body?.message || 'No se pudo completar la reserva.'
     }
   } finally {
     booking.value = false
@@ -243,23 +292,41 @@ async function confirmBooking() {
 
 /** Recarga de la disponibilidad (la pinta el servidor con las citas reales). */
 async function reloadSlots() {
-  slotsLoading.value = true
+  slotsController?.abort()
+  const controller = new AbortController()
+  slotsController = controller
+  slots.value = []
+  start.value = ''
+  slotsWaiting.value = false
+  slotsRetryable.value = false
   slotsError.value = ''
+  if (!serviceId.value || !date.value || !profile.value) {
+    slotsLoading.value = false
+    return
+  }
+  slotsLoading.value = true
   try {
-    const { data } = await api.get(
+    const { data } = await getBookingData(
       `/public/booking/${encodeURIComponent(slug.value)}/availability`,
-      { params: { serviceId: serviceId.value, date: date.value } }
+      {
+        signal: controller.signal,
+        params: { serviceId: serviceId.value, date: date.value },
+        onWaiting: () => { slotsWaiting.value = true },
+      }
     )
+    if (controller.signal.aborted) return
     slots.value = data.slots
     bufferMinutes.value = Number(data.bufferMinutes) || 0
     if (data.slots.length === 0) {
       slotsError.value = 'No hay huecos libres ese día. Prueba con otra fecha.'
     }
   } catch (err) {
+    if (controller.signal.aborted) return
+    slotsRetryable.value = isConnectionError(err)
     slotsError.value =
       err?.response?.data?.message || 'No se pudo cargar la disponibilidad.'
   } finally {
-    slotsLoading.value = false
+    if (!controller.signal.aborted) slotsLoading.value = false
   }
 }
 
@@ -289,12 +356,15 @@ function priceLabel(value) {
     </div>
 
     <!-- Cargando -->
-    <p v-if="loading" class="book__state">Cargando…</p>
+    <p v-if="loading" class="book__state" role="status" aria-live="polite">
+      {{ connectionWaiting ? 'Estamos conectando con la agenda, espera un momento…' : 'Conectando con la agenda…' }}
+    </p>
 
     <!-- Perfil no disponible -->
     <div v-else-if="error && !profile && !done" class="book__state book__state--error">
       <h1 class="book__title">Reservas no disponibles</h1>
       <p>{{ error }}</p>
+      <Button v-if="profileRetryable" variant="primary" @click="loadProfile">Volver a conectar</Button>
       <Button variant="secondary" @click="goToProfile">Ver perfil</Button>
     </div>
 
@@ -356,7 +426,7 @@ function priceLabel(value) {
             <button
               class="book__stepper-btn"
               type="button"
-              :disabled="i > currentStep"
+              :disabled="i > currentStep || booking || bookingUncertain"
               :aria-current="currentStep === i ? 'step' : null"
               @click="goToStep(i)"
             >
@@ -390,6 +460,7 @@ function priceLabel(value) {
               class="service-pick"
               :class="{ 'service-pick--on': serviceId === s._id }"
               type="button"
+              :disabled="booking || bookingUncertain"
               :aria-pressed="serviceId === s._id"
               @click="serviceId = s._id"
             >
@@ -424,6 +495,7 @@ function priceLabel(value) {
             class="date-chip"
             :class="{ 'date-chip--on': date === d.value }"
             type="button"
+            :disabled="booking || bookingUncertain"
             :aria-pressed="date === d.value"
             :aria-label="longDate(d.value)"
             @click="date = d.value"
@@ -436,9 +508,12 @@ function priceLabel(value) {
           </button>
         </div>
 
-        <p v-if="slotsLoading" class="book__state book__state--inline">
-          Buscando huecos libres…
+        <p v-if="slotsLoading" class="book__state book__state--inline" role="status" aria-live="polite">
+          {{ slotsWaiting ? 'Estamos conectando con la agenda, espera un momento…' : 'Consultando horarios disponibles…' }}
         </p>
+        <Button v-if="slotsRetryable && !slotsLoading" variant="secondary" @click="reloadSlots">
+          Volver a consultar horarios
+        </Button>
         <p v-else-if="date && slotsError" class="book__notice" role="status">
           <Icon name="alert" :size="15" />
           <span>{{ slotsError }}</span>
@@ -457,6 +532,7 @@ function priceLabel(value) {
                 class="slot"
                 :class="{ 'slot--on': start === slot.start }"
                 type="button"
+                :disabled="booking || bookingUncertain"
                 :aria-pressed="start === slot.start"
                 @click="pickSlot(slot.start)"
               >
@@ -481,7 +557,7 @@ function priceLabel(value) {
             <strong>{{ longDate(date) }}</strong>
             · {{ selectedSlot.start }} – {{ selectedSlot.end }}
           </span>
-          <button class="book__pick-clear" type="button" @click="start = ''">Cambiar</button>
+          <button class="book__pick-clear" type="button" :disabled="booking || bookingUncertain" @click="start = ''">Cambiar</button>
         </div>
       </section>
 
@@ -504,6 +580,7 @@ function priceLabel(value) {
               type="text"
               maxlength="120"
               autocomplete="name"
+              :disabled="booking || bookingUncertain"
               placeholder="Tu nombre"
               :aria-invalid="showError('name') ? 'true' : null"
               @blur="touched.name = true"
@@ -520,6 +597,7 @@ function priceLabel(value) {
               type="tel"
               maxlength="40"
               autocomplete="tel"
+              :disabled="booking || bookingUncertain"
               placeholder="Ej. 300 123 4567"
               :aria-invalid="showError('phone') ? 'true' : null"
               @blur="touched.phone = true"
@@ -528,7 +606,7 @@ function priceLabel(value) {
           </label>
 
           <label v-if="profile?.whatsappUpdatesAvailable" class="book__whatsapp-opt-in">
-            <input v-model="form.whatsappOptIn" type="checkbox" />
+            <input v-model="form.whatsappOptIn" type="checkbox" :disabled="booking || bookingUncertain" />
             <span>Acepto recibir por WhatsApp avisos sobre esta reserva y un recordatorio antes de la cita.</span>
           </label>
           <p v-else class="book__whatsapp-unavailable">Los avisos automáticos por WhatsApp no están disponibles todavía. Podrás consultar el estado de tu reserva en esta página.</p>
@@ -539,7 +617,11 @@ function priceLabel(value) {
             · {{ priceLabel(selectedService?.price) }}
           </p>
 
-          <Button type="submit" variant="primary">
+          <p v-if="bookingUncertain" class="form__error" role="alert">{{ confirmError }}</p>
+          <a v-if="bookingUncertain && bookingCheckLink" class="btn btn--secondary" :href="bookingCheckLink" target="_blank" rel="noopener">
+            Consultar con el barbero
+          </a>
+          <Button type="submit" variant="primary" :disabled="booking || bookingUncertain">
             Revisar y confirmar
           </Button>
         </form>
@@ -550,7 +632,7 @@ function priceLabel(value) {
         :open="confirmOpen"
         title="Confirmar reserva"
         icon="calendar"
-        @close="confirmOpen = false"
+        @close="!booking && (confirmOpen = false)"
       >
         <p class="book__confirm-lead">
           Revisa los datos. Al confirmar, la cita queda
@@ -571,12 +653,16 @@ function priceLabel(value) {
         </ul>
 
         <p v-if="confirmError" class="form__error" role="alert">{{ confirmError }}</p>
+        <a v-if="bookingUncertain && bookingCheckLink" class="btn btn--secondary" :href="bookingCheckLink" target="_blank" rel="noopener">
+          Consultar con el barbero
+        </a>
+        <p v-if="booking" role="status" aria-live="polite">Estamos enviando tu reserva. Espera la confirmación antes de cerrar esta página.</p>
 
         <template #footer>
           <Button variant="secondary" :disabled="booking" @click="confirmOpen = false">
             Seguir editando
           </Button>
-          <Button variant="primary" :disabled="booking" @click="confirmBooking">
+          <Button variant="primary" :disabled="booking || bookingUncertain" @click="confirmBooking">
             {{ booking ? 'Confirmando…' : 'Sí, confirmar' }}
           </Button>
         </template>
