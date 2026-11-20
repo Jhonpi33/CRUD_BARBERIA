@@ -10,9 +10,9 @@
   Estructura pensada por jerarquía: portada (quién es) → acciones (cómo reservar)
   → servicios (qué ofrece) → datos de contacto → CTA fijo en móvil.
 */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import api from '../services/api'
+import { getBookingData, isConnectionError } from '../services/bookingConnection'
 import Icon from '../components/Icon.vue'
 import { waMessageLink } from '../utils/whatsapp'
 import { moneyLabel, durationLabel } from '../utils/datetime'
@@ -23,6 +23,10 @@ const profile = ref(null)
 const services = ref([])
 const loading = ref(true)
 const error = ref('')
+const waiting = ref(false)
+const retryable = ref(false)
+const servicesUnavailable = ref(false)
+let controller
 
 const slug = computed(() => String(route.params.slug || ''))
 
@@ -58,33 +62,63 @@ const waUrl = computed(() => {
   )
 })
 
-onMounted(async () => {
+async function loadProfile() {
+  controller?.abort()
+  const current = new AbortController()
+  controller = current
+  loading.value = true
+  error.value = ''
+  waiting.value = false
+  retryable.value = false
+  servicesUnavailable.value = false
+  profile.value = null
+  services.value = []
+  const options = {
+    signal: current.signal,
+    onWaiting: () => { waiting.value = true },
+  }
   try {
     const [profileRes, bookingRes] = await Promise.all([
-      api.get(`/profile/u/${encodeURIComponent(slug.value)}`),
-      api.get(`/public/booking/${encodeURIComponent(slug.value)}`).catch(() => null),
+      getBookingData(`/profile/u/${encodeURIComponent(slug.value)}`, options),
+      getBookingData(`/public/booking/${encodeURIComponent(slug.value)}`, options).catch(() => null),
     ])
+    if (current.signal.aborted) return
     profile.value = profileRes.data.profile
     services.value = bookingRes?.data?.services || []
+    servicesUnavailable.value = !bookingRes
   } catch (err) {
-    error.value = err?.response?.data?.message || 'No se pudo cargar este perfil.'
+    if (current.signal.aborted) return
+    retryable.value = isConnectionError(err)
+    error.value = retryable.value
+      ? 'No pudimos conectar con la agenda. Intenta de nuevo en un momento.'
+      : err?.response?.data?.message || 'No se pudo cargar este perfil.'
   } finally {
-    loading.value = false
+    if (!current.signal.aborted) loading.value = false
   }
-})
+}
+
+watch(slug, loadProfile, { immediate: true })
+onBeforeUnmount(() => controller?.abort())
 </script>
 
 <template>
   <div class="pub">
-    <div v-if="loading" class="pub__state" role="status">Cargando perfil…</div>
+    <div v-if="loading" class="pub__state" role="status" aria-live="polite">
+      {{ waiting ? 'Estamos conectando con la agenda, espera un momento…' : 'Cargando perfil…' }}
+    </div>
 
     <div v-else-if="error" class="pub__state pub__state--error">
       <h1 class="pub__stateTitle">Perfil no disponible</h1>
       <p>{{ error }}</p>
+      <button v-if="retryable" class="btn btn--primary" type="button" @click="loadProfile">Volver a conectar</button>
       <RouterLink class="btn btn--secondary" to="/">Volver al inicio</RouterLink>
     </div>
 
     <article v-else-if="profile" class="pub__page">
+      <p v-if="servicesUnavailable" class="pub__state" role="status">
+        No pudimos consultar los servicios.
+        <button class="btn btn--secondary" type="button" @click="loadProfile">Volver a consultar</button>
+      </p>
       <!-- 1. Portada: quién es -->
       <header class="hero">
         <div class="hero__banner" aria-hidden="true"></div>
