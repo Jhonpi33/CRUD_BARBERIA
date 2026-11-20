@@ -1,0 +1,480 @@
+/*
+  Elysia — componentes reutilizables (D1)
+  Clases: .btn (+variantes), .card, .input (+label/hint/error), .badge (+estados),
+  .skeleton, .empty-state, .alert, .spinner.
+  Se carga AL FINAL: pisa las clases homónimas de main.css (legacy).
+  Nota: se aceptan las dos grafías de variante (.btn-primary y .btn--primary)
+  porque Button.vue emite la segunda y así no se rompe ninguna pantalla.
+*/
+
+/* ---------- Botones ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    filter var(--motion-fast) ease;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary,
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-secondary,
+.btn--secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled),
+.btn--secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-ghost,
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover:not(:disabled),
+.btn--ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.btn-danger,
+.btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-solid);
+}
+
+.btn-danger:hover:not(:disabled),
+.btn--danger:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.btn--lg,
+.btn-lg {
+  padding: 13px 26px;
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-md);
+}
+
+.btn--sm,
+.btn-sm {
+  padding: 6px 12px;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm);
+}
+
+.btn--block,
+.btn-block {
+  width: 100%;
+}
+
+/* Botón en carga (spinner CSS) */
+.btn.is-loading {
+  pointer-events: none;
+}
+
+.btn.is-loading::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--radius-full);
+  animation: elysia-spin 0.7s linear infinite;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-full);
+  animation: elysia-spin 0.7s linear infinite;
+}
+
+@keyframes elysia-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Tarjeta ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Campos de formulario ----------
+   Se listan junto a sus nombres legacy (.form__*) para que TODA la app
+   (8 vistas, sin tocar su lógica) herede el sistema de diseño. */
+.input-field,
+.form__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.input-label,
+.form__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Ayuda breve bajo un campo: acompaña a la etiqueta; el error va aparte. */
+.form__hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-faint);
+  line-height: 1.35;
+}
+
+.input,
+.form__input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+  color: var(--text);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.input::placeholder,
+.form__input::placeholder {
+  color: var(--text-faint);
+}
+
+.input:focus,
+.form__input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input:disabled,
+.form__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.input--error,
+.form__input--error,
+.input[aria-invalid='true'],
+.form__input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.input--error:focus,
+.form__input--error:focus,
+.input[aria-invalid='true']:focus,
+.form__input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.input-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* Campo con botón de mostrar/ocultar contraseña */
+.input-wrap {
+  position: relative;
+  display: block;
+}
+
+.input-wrap .input,
+.input-wrap .form__input {
+  padding-right: 44px;
+}
+
+.input-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease;
+}
+
+.input-toggle:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.input-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.input-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.input-error,
+.form__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--danger);
+}
+
+/* Siempre texto + ícono: nunca solo color */
+.input-error::before {
+  content: '!';
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: var(--on-solid);
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+}
+
+/* ---------- Badges de estado ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Punto + etiqueta: el color nunca va solo */
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+.badge-success {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: var(--success-border);
+}
+
+.badge-warning {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: var(--warning-border);
+}
+
+.badge-danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+}
+
+.badge-info {
+  color: var(--info);
+  background: var(--info-soft);
+  border-color: var(--info-border);
+}
+
+.badge-muted {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* ---------- Skeleton de carga ---------- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--border-soft) 37%,
+    var(--surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: elysia-shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton--text {
+  height: 1em;
+  margin: 0.35em 0;
+}
+
+.skeleton--circle {
+  border-radius: var(--radius-full);
+}
+
+@keyframes elysia-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ---------- Estado vacío ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-7) var(--space-4);
+  color: var(--text-muted);
+}
+
+.empty-state__icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.empty-state__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text);
+  font-size: var(--font-size-md);
+}
+
+.empty-state__text {
+  font-size: var(--font-size-sm);
+  max-width: 42ch;
+}
+
+/* ---------- Alertas (ícono + texto, nunca solo color) ---------- */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  font-size: var(--font-size-sm);
+  color: var(--text);
+}
+
+.alert::before {
+  flex: none;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.alert--success {
+  background: var(--success-soft);
+  border-color: var(--success-border);
+}
+
+.alert--success::before {
+  content: '';
+  width: 1.05em;
+  height: 1.05em;
+  background-color: var(--success);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.alert--warning {
+  background: var(--warning-soft);
+  border-color: var(--warning-border);
+}
+
+.alert--warning::before {
+  content: '!';
+  color: var(--warning);
+}
+
+.alert--danger {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+}
+
+.alert--danger::before {
+  content: '';
+  width: 1.05em;
+  height: 1.05em;
+  background-color: var(--danger);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.alert--info {
+  background: var(--info-soft);
+  border-color: var(--info-border);
+}
+
+.alert--info::before {
+  content: 'i';
+  color: var(--info);
+  font-family: var(--font-display);
+  font-style: italic;
+}
