@@ -68,6 +68,17 @@ after(async () => {
 })
 
 describe('PUT /api/profile/me — imagen opcional', () => {
+  test('rechaza teléfonos con letras o más de 15 dígitos', async () => {
+    const token = await createAccount('barber')
+    for (const phone of ['abcdefghij', '3001234567abc', '1234567890123456']) {
+      const r = await req('PUT', '/api/profile/me', {
+        token, body: { ...common, phone, professionalName: 'Teléfono inválido' },
+      })
+      assert.equal(r.status, 422, JSON.stringify(r.data))
+      assert.match(r.data.message, /teléfono/)
+    }
+  })
+
   test('acepta photoUrl vacío (barbero sin foto)', async () => {
     const token = await createAccount('barber')
     const r = await req('PUT', '/api/profile/me', {

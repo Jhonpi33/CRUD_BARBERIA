@@ -35,7 +35,17 @@ const profileSchema = new mongoose.Schema(
     },
 
     // ---- Comunes a ambos tipos ----
-    phone: { type: String, trim: true, maxlength: 30, default: '' },
+    phone: {
+      type: String, trim: true, maxlength: 30, default: '',
+      validate: {
+        validator(value) {
+          if (!value) return true
+          const digits = value.replace(/\D/g, '')
+          return /^[+()\d\s.-]+$/.test(value) && digits.length >= 7 && digits.length <= 15
+        },
+        message: 'El teléfono debe contener entre 7 y 15 dígitos y no puede incluir letras.',
+      },
+    },
     location: { type: String, trim: true, maxlength: 160, default: '' },
     whatsappNotificationsEnabled: { type: Boolean, default: false },
 

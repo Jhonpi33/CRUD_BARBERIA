@@ -49,6 +49,9 @@ const passwordRules = body('password')
   .withMessage('La contraseña es obligatoria')
   .isLength({ min: 8, max: 72 })
   .withMessage('La contraseña debe tener entre 8 y 72 caracteres')
+  .bail()
+  .custom(value => Buffer.byteLength(value, 'utf8') <= 72)
+  .withMessage('La contraseña es demasiado larga. Usa menos caracteres especiales.')
 
 const emailRules = body('email')
   .isEmail()
@@ -79,7 +82,11 @@ router.post(
 router.post(
   '/login',
   authLimiter,
-  validate([emailRules, passwordRules]),
+  validate([
+    emailRules,
+    body('password').isString().isLength({ min: 8, max: 72 })
+      .withMessage('La contraseña debe tener entre 8 y 72 caracteres'),
+  ]),
   login
 )
 
