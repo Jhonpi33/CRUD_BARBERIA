@@ -95,7 +95,10 @@ export async function googleLogin(req, res, next) {
     return res.status(503).json({ message: 'El acceso con Google no está disponible.' })
   }
   const allowedOrigin = new URL(process.env.CLIENT_URL || 'http://localhost:5173').origin
-  if (req.get('origin') !== allowedOrigin) {
+  const localOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173']
+  const localAlias = process.env.NODE_ENV !== 'production' &&
+    localOrigins.includes(allowedOrigin) && localOrigins.includes(req.get('origin'))
+  if (req.get('origin') !== allowedOrigin && !localAlias) {
     return res.status(403).json({ message: 'Solicitud de acceso no válida.' })
   }
   let identity
