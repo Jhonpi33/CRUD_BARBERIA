@@ -1,4 +1,6 @@
 <script setup>
+import Icon from '../components/Icon.vue'
+
 const benefits = [
   'Agenda y reservas en línea, sin cuaderno.',
   'Clientes, cobros e historia en un solo lugar.',
@@ -20,6 +22,12 @@ const benefits = [
     <!-- Formulario en card centrada -->
     <main class="auth-split__panel">
       <div class="auth-split__card">
+        <nav class="auth-split__navigation" aria-label="Navegación de acceso">
+          <RouterLink class="auth-split__back" to="/">
+            <Icon name="arrow-left" :size="18" />
+            Volver al inicio
+          </RouterLink>
+        </nav>
         <RouterView />
       </div>
     </main>
@@ -106,6 +114,36 @@ const benefits = [
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   padding: clamp(24px, 5vw, 40px);
+}
+
+.auth-split__navigation {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.auth-split__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-split__back:hover {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.auth-split__back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* ---------- Móvil: solo el formulario ---------- */
