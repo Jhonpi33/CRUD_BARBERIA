@@ -33,7 +33,13 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: {
       type: String,
-      required: [true, 'La contraseña es obligatoria'],
+      required: [function () { return !this.googleSubject }, 'La contraseña es obligatoria'],
+      select: false,
+    },
+    googleSubject: {
+      type: String,
+      unique: true,
+      sparse: true,
       select: false,
     },
     /*
@@ -99,6 +105,7 @@ const userSchema = new mongoose.Schema(
     toJSON: {
       transform(_doc, ret) {
         delete ret.passwordHash
+        delete ret.googleSubject
         delete ret.resetPasswordTokenHash
         delete ret.resetPasswordExpires
         delete ret.emailVerificationCodeHash

@@ -26,14 +26,20 @@ const serveFrontend = process.env.SERVE_FRONTEND === 'true'
 
 app.set('trust proxy', 1)
 
-app.use(helmet(serveFrontend ? {
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  ...(serveFrontend ? {
   contentSecurityPolicy: {
     directives: {
-      styleSrc: ["'self'", 'https://fonts.googleapis.com', "'unsafe-inline'"],
+      styleSrc: ["'self'", 'https://fonts.googleapis.com', 'https://accounts.google.com/gsi/style', "'unsafe-inline'"],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      scriptSrc: ["'self'", 'https://accounts.google.com/gsi/client'],
+      frameSrc: ["'self'", 'https://accounts.google.com'],
+      connectSrc: ["'self'", 'https://accounts.google.com'],
     },
   },
-} : undefined))
+  } : {}),
+}))
 app.use(
   cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',

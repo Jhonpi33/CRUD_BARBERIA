@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
+import { OAuth2Client } from 'google-auth-library'
 import { User, SELF_ASSIGNABLE_ROLES } from '../models/User.js'
 import {
   sendAccountCreatedEmail,
@@ -21,6 +22,91 @@ import {
 const BCRYPT_ROUNDS = 12
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000 // coherente con el modelo
 const CODE_TTL_SECONDS = Math.round(CODE_TTL_MS / 1000)
+const googleClient = new OAuth2Client()
+const googleCookie = 'elysia_google'
+
+export function googleConfig(req, res) {
+  res.set('Cache-Control', 'no-store')
+  const clientId = process.env.GOOGLE_WEB_CLIENT_ID
+  if (!clientId) return res.json({ enabled: false })
+  const nonce = crypto.randomBytes(32).toString('hex')
+  const challenge = jwt.sign({ nonce, purpose: 'google-login' }, process.env.JWT_SECRET, {
+    expiresIn: '10m', audience: 'google-login',
+  })
+  res.cookie(googleCookie, challenge, {
+    httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',
+    path: '/api/auth/google', maxAge: 10 * 60 * 1000,
+  })
+  return res.json({ enabled: true, clientId, nonce })
+}
+
+export async function googleLogin(req, res, next) {
+  res.set('Cache-Control', 'no-store')
+  if (!process.env.GOOGLE_WEB_CLIENT_ID) {
+    return res.status(503).json({ message: 'El acceso con Google no está disponible.' })
+  }
+  const allowedOrigin = new URL(process.env.CLIENT_URL || 'http://localhost:5173').origin
+  if (req.get('origin') !== allowedOrigin) {
+    return res.status(403).json({ message: 'Solicitud de acceso no válida.' })
+  }
+  let identity
+  try {
+    const cookie = req.headers.cookie?.split(';').map(value => value.trim())
+      .find(value => value.startsWith(googleCookie + '='))?.slice(googleCookie.length + 1)
+    const challenge = jwt.verify(decodeURIComponent(cookie || ''), process.env.JWT_SECRET, {
+      audience: 'google-login', algorithms: ['HS256'],
+    })
+    const ticket = await googleClient.verifyIdToken({
+      idToken: req.body.credential, audience: process.env.GOOGLE_WEB_CLIENT_ID,
+    })
+    identity = ticket.getPayload()
+    if (challenge.purpose !== 'google-login' || !identity?.sub || !identity.email_verified ||
+        identity.nonce !== challenge.nonce || !identity.email) {
+      throw new Error('Invalid identity')
+    }
+  } catch {
+    return res.status(401).json({ message: 'No pudimos verificar tu cuenta de Google. Intenta de nuevo.' })
+  }
+  try {
+    // Google es autoridad del correo en Gmail y dominios Workspace verificados.
+    const email = identity.email.toLowerCase()
+    const authoritative = email.endsWith('@gmail.com') || Boolean(identity.hd)
+    let user = await User.findOne({ googleSubject: identity.sub }).select('+googleSubject')
+    let created = false
+    if (!user) {
+      if (!authoritative) {
+        return res.status(409).json({ message: 'Para este correo, crea tu cuenta con correo y contraseña y verifica el código.' })
+      }
+      user = await User.findOne({ email }).select('+googleSubject')
+      if (user && (!authoritative || user.emailVerifiedAt === null ||
+          (user.googleSubject && user.googleSubject !== identity.sub))) {
+        return res.status(409).json({ message: 'Usa el acceso con correo y contraseña para esta cuenta.' })
+      }
+      if (user) {
+        user.googleSubject = identity.sub
+        await user.save({ validateModifiedOnly: true })
+      } else {
+        const googleName = String(identity.name || email.split('@')[0]).trim().slice(0, 60)
+        user = await User.create({
+          name: googleName.length >= 2 ? googleName : 'Usuario',
+          email, googleSubject: identity.sub, emailVerifiedAt: new Date(),
+        })
+        created = true
+      }
+    }
+    res.clearCookie(googleCookie, {
+      path: '/api/auth/google', httpOnly: true, sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    })
+    if (created) await notifyNewAccount(user, false)
+    return res.json({ token: signToken(user._id), user: publicUser(user) })
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'La cuenta ya está creada. Intenta iniciar sesión de nuevo.' })
+    }
+    next(error)
+  }
+}
 
 /** ¿La cuenta está esperando el código? (null = pendiente, undefined = anterior a la validación) */
 function isPendingVerification(user) {
@@ -166,7 +252,7 @@ export async function login(req, res, next) {
     const { email, password } = req.body
 
     const user = await User.findOne({ email }).select('+passwordHash')
-    const valid = user ? await bcrypt.compare(password, user.passwordHash) : false
+    const valid = user?.passwordHash ? await bcrypt.compare(password, user.passwordHash) : false
 
     if (!user || !valid) {
       return res.status(401).json({ message: 'Credenciales inválidas' })

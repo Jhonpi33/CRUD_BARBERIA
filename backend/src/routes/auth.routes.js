@@ -14,6 +14,8 @@ import {
   setOwnRole,
   forgotPassword,
   resetPassword,
+  googleConfig,
+  googleLogin,
 } from '../controllers/auth.controller.js'
 import { CODE_LENGTH } from '../utils/emailVerification.js'
 
@@ -51,6 +53,11 @@ const emailRules = body('email')
   .isEmail()
   .withMessage('El correo no es válido')
   .normalizeEmail()
+
+router.get('/google/config', googleConfig)
+router.post('/google', authLimiter, validate([
+  body('credential').isString().isLength({ min: 20, max: 10000 }),
+]), googleLogin)
 
 router.post(
   '/register',
