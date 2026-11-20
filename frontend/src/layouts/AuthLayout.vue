@@ -1,5 +1,8 @@
 <script setup>
 import Icon from '../components/Icon.vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
 
 const benefits = [
   'Agenda y reservas en línea, sin cuaderno.',
@@ -22,7 +25,7 @@ const benefits = [
     <!-- Formulario en card centrada -->
     <main class="auth-split__panel">
       <div class="auth-split__card">
-        <nav class="auth-split__navigation" aria-label="Navegación de acceso">
+        <nav v-if="!route.meta.onboarding && route.name !== 'select-role'" class="auth-split__navigation" aria-label="Navegación de acceso">
           <RouterLink class="auth-split__back" to="/">
             <Icon name="arrow-left" :size="18" />
             Volver al inicio

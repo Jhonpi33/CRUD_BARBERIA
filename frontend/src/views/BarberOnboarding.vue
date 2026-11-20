@@ -21,7 +21,6 @@ const form = reactive({
 })
 
 const errors = ref({})
-const notice = ref('')
 const loading = ref(true)
 const whatsappChannels = ref({ configured: false, barberAlerts: false })
 
@@ -58,9 +57,13 @@ function validate() {
   const e = {}
   const name = form.professionalName.trim()
   if (name.length < 2 || name.length > 80) e.professionalName = 'Tu nombre profesional debe tener entre 2 y 80 caracteres.'
-  if (form.description.trim().length > 600) e.description = 'La descripción no puede superar 600 caracteres.'
+  if (!form.description.trim()) e.description = 'Describe brevemente tus servicios o tu experiencia.'
+  else if (form.description.trim().length > 600) e.description = 'La descripción no puede superar 600 caracteres.'
   const phone = form.phone.trim()
-  if (phone.length < 7 || phone.length > 30) e.phone = 'El teléfono debe tener entre 7 y 30 caracteres.'
+  const digits = phone.replace(/\D/g, '')
+  if (!/^[+()\d\s.-]+$/.test(phone) || digits.length < 7 || digits.length > 15 || phone.length > 30) {
+    e.phone = 'Escribe un teléfono válido de entre 7 y 15 dígitos.'
+  }
   const location = form.location.trim()
   if (location.length < 3 || location.length > 160) e.location = 'Indica tu ubicación (ciudad o dirección).'
   if (form.photoUrl.trim() && !/^https?:\/\/\S+$/i.test(form.photoUrl.trim())) e.photoUrl = 'La foto debe ser un enlace http/https válido.'
@@ -68,29 +71,17 @@ function validate() {
   return Object.keys(e).length === 0
 }
 
-async function onSaveDraft() {
-  notice.value = ''
-  errors.value = {}
-  try {
-    await auth.saveProfile(payload())
-    notice.value = 'Borrador guardado. Puedes cerrar sesión y continuar después.'
-  } catch (err) {
-    errors.value = {}
-    notice.value = ''
-    errors.value._form = friendlyAuthError(err)
-  }
-}
-
 async function onFinish() {
-  notice.value = ''
+  if (auth.loading) return
   errors.value = {}
   if (!validate()) return
+  const editing = isEditing.value
   try {
     await auth.saveProfile(payload())
     await auth.completeProfile()
     toast.success(
-      isEditing.value ? 'Perfil actualizado' : 'Perfil activado',
-      'Tus cambios ya se reflejan en tu perfil público.'
+      editing ? 'Perfil actualizado' : 'Tu perfil está listo',
+      editing ? 'Los cambios ya aparecen en tu página.' : 'Añade tus servicios y horarios desde el panel para recibir reservas.'
     )
     router.push(auth.panelPath)
   } catch (err) {
@@ -123,28 +114,14 @@ function payload() {
       </RouterLink>
     </div>
 
-    <template v-if="!isEditing">
-      <p class="onboarding__step">Paso 1 de 1 · Perfil de barbero</p>
-      <div
-        class="onboarding__progress"
-        role="progressbar"
-        aria-valuenow="1"
-        aria-valuemin="1"
-        aria-valuemax="1"
-        aria-label="Progreso del formulario"
-      >
-        <span class="onboarding__progress-bar" style="width: 100%"></span>
-      </div>
-    </template>
-
     <h1 class="onboarding__title">
-      {{ isEditing ? 'Editar mi perfil profesional' : 'Crea tu perfil profesional' }}
+      {{ isEditing ? 'Editar mi perfil profesional' : 'Completa tu cuenta' }}
     </h1>
     <p class="onboarding__lead">
       {{
         isEditing
           ? 'Actualiza los datos que verán tus clientes en tu perfil público.'
-          : 'Esto es lo que verán tus clientes en tu perfil público. Puedes guardarlo a medias y volver cuando quieras.'
+          : 'Añade los datos que verán tus clientes en tu página de reservas. Después podrás configurar tus servicios y horarios.'
       }}
     </p>
 
@@ -164,7 +141,7 @@ function payload() {
       </label>
 
       <label class="form__field">
-        <span class="form__label">Foto (enlace) </span>
+        <span class="form__label">Enlace de tu foto (opcional)</span>
         <input
           v-model="form.photoUrl"
           class="form__input"
@@ -213,30 +190,19 @@ function payload() {
         <span v-if="errors.location" class="form__error">{{ errors.location }}</span>
       </label>
 
-      <label class="onboarding__whatsapp">
+      <label v-if="whatsappChannels.barberAlerts" class="onboarding__whatsapp">
         <input v-model="form.whatsappNotificationsEnabled" type="checkbox" />
         <span>
           <strong>Recibir avisos de reservas por WhatsApp</strong>
-          <small v-if="whatsappChannels.barberAlerts">Usaremos el teléfono de WhatsApp de tu perfil para avisarte cuando llegue una reserva.</small>
-          <small v-else>La conexión automática de WhatsApp aún no está lista. Puedes dejar activada esta preferencia para cuando se configure.</small>
+          <small>Usaremos el teléfono de WhatsApp de tu perfil para avisarte cuando llegue una reserva.</small>
         </span>
       </label>
 
       <p v-if="errors._form" class="form__error" role="alert">{{ errors._form }}</p>
-      <p v-if="notice" class="form__info" role="status">{{ notice }}</p>
 
       <div class="onboarding__actions">
-        <Button
-          v-if="!isEditing"
-          type="button"
-          variant="secondary"
-          :disabled="auth.loading"
-          @click="onSaveDraft"
-        >
-          Guardar borrador
-        </Button>
         <Button type="submit" variant="primary" :disabled="auth.loading">
-          {{ auth.loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Terminar y entrar a mi panel' }}
+          {{ auth.loading ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear mi perfil y entrar' }}
         </Button>
       </div>
     </form>
@@ -255,33 +221,6 @@ function payload() {
 
 .onboarding__nav-top {
   margin-bottom: var(--space-4);
-}
-
-.onboarding__step {
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent);
-  font-weight: 600;
-  margin-bottom: var(--space-2);
-  text-align: center;
-}
-
-.onboarding__progress {
-  width: 100%;
-  height: 6px;
-  background: var(--surface-2);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-  margin-bottom: var(--space-4);
-}
-
-.onboarding__progress-bar {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  border-radius: var(--radius-full);
-  transition: width var(--motion) ease;
 }
 
 .onboarding__title {
