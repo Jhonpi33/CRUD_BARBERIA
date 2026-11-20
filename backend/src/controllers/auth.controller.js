@@ -3,11 +3,13 @@ import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
 import { OAuth2Client } from 'google-auth-library'
 import { User, SELF_ASSIGNABLE_ROLES } from '../models/User.js'
+import { LoginChallenge } from '../models/LoginChallenge.js'
 import {
   sendAccountCreatedEmail,
   sendAdminNewAccountEmail,
   sendPasswordResetEmail,
   sendVerificationEmail,
+  sendLoginCodeEmail,
 } from '../utils/mailer.js'
 import {
   verificationEnabled,
@@ -24,6 +26,53 @@ const RESET_TOKEN_TTL_MS = 30 * 60 * 1000 // coherente con el modelo
 const CODE_TTL_SECONDS = Math.round(CODE_TTL_MS / 1000)
 const googleClient = new OAuth2Client()
 const googleCookie = 'elysia_google'
+const loginTokenHash = token => crypto.createHash('sha256').update(token).digest('hex')
+
+async function beginLoginChallenge(user, res) {
+  const token = crypto.randomBytes(32).toString('hex')
+  const code = generateCode()
+  const challenge = await LoginChallenge.create({
+    tokenHash: loginTokenHash(token),
+    owner: user._id,
+    codeHash: hashCode('login:' + token, code),
+    passwordFingerprint: loginTokenHash(user.passwordHash),
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+  })
+  const result = await sendLoginCodeEmail({ to: user.email, name: user.name, code })
+  if (!result.sent) {
+    await LoginChallenge.deleteOne({ _id: challenge._id })
+    return res.status(503).json({ message: 'No pudimos enviar el código. Intenta de nuevo en un momento.' })
+  }
+  return res.json({ loginChallenge: { token, email: user.email, expiresInSeconds: 600 } })
+}
+
+export async function verifyLoginCode(req, res, next) {
+  res.set('Cache-Control', 'no-store')
+  try {
+    const { challengeToken, code } = req.body
+    const tokenHash = loginTokenHash(challengeToken)
+    const challenge = await LoginChallenge.findOneAndUpdate({
+      tokenHash, expiresAt: { $gt: new Date() }, attempts: { $lt: 5 },
+    }, { $inc: { attempts: 1 } }, { new: true })
+    const invalid = () => res.status(401).json({
+      message: 'El código no es válido o venció. Puedes volver a entrar con tu contraseña para recibir otro.',
+    })
+    if (!challenge || !codesMatch(challenge.codeHash, hashCode('login:' + challengeToken, code))) {
+      return invalid()
+    }
+    const user = await User.findById(challenge.owner).select('+passwordHash')
+    if (!user?.passwordHash || isPendingVerification(user) ||
+        loginTokenHash(user.passwordHash) !== challenge.passwordFingerprint) return invalid()
+    // Solo una solicitud concurrente puede consumir el reto y recibir sesión.
+    const consumed = await LoginChallenge.findOneAndDelete({
+      _id: challenge._id, expiresAt: { $gt: new Date() }, attempts: { $lte: 5 },
+    })
+    if (!consumed) return invalid()
+    return res.json({ token: signToken(user._id), user: publicUser(user) })
+  } catch (error) {
+    next(error)
+  }
+}
 
 export function googleConfig(req, res) {
   res.set('Cache-Control', 'no-store')
@@ -248,6 +297,7 @@ export async function register(req, res, next) {
 
 /** POST /api/auth/login — errores genéricos para no revelar qué campo falló. */
 export async function login(req, res, next) {
+  res.set('Cache-Control', 'no-store')
   try {
     const { email, password } = req.body
 
@@ -268,6 +318,9 @@ export async function login(req, res, next) {
       })
     }
 
+    if (process.env.REQUIRE_LOGIN_CODE === 'true') {
+      return await beginLoginChallenge(user, res)
+    }
     res.json({ token: signToken(user._id), user: publicUser(user) })
   } catch (err) {
     next(err)

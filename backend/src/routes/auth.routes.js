@@ -16,6 +16,7 @@ import {
   resetPassword,
   googleConfig,
   googleLogin,
+  verifyLoginCode,
 } from '../controllers/auth.controller.js'
 import { CODE_LENGTH } from '../utils/emailVerification.js'
 
@@ -83,6 +84,10 @@ router.post(
 )
 
 router.get('/me', requireAuth, me)
+router.post('/login/verify-code', authLimiter, validate([
+  body('challengeToken').isString().matches(/^[a-f0-9]{64}$/),
+  body('code').isString().matches(/^\d{6}$/),
+]), verifyLoginCode)
 
 /**
  * POST /verify-email — { email, code }

@@ -1,6 +1,14 @@
 import { sendMail } from '../config/mailer.js'
 import { utcToWallClock } from './timezone.js'
 
+export function sendLoginCodeEmail({ to, name, code }) {
+  return sendMail({
+    to,
+    subject: 'Tu código para iniciar sesión en Elysia',
+    text: `Hola ${name},\n\nTu código de acceso es ${code}.\nCaduca en 10 minutos y solo se puede usar una vez.\nSi no intentaste entrar a Elysia, cambia tu contraseña.`,
+  })
+}
+
 /**
  * Correo de aviso al dueño cuando entra una reserva pública.
  *
