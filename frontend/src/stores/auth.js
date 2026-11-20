@@ -158,10 +158,23 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     try {
       const { data } = await api.post('/auth/login', { email, password })
+      if (data.loginChallenge) return { loginChallenge: data.loginChallenge }
       saveSession(data.token, data.user)
       // Carga el perfil junto con el login: evita que un usuario con perfil
       // completado caiga al onboarding por una condición de carrera del guard
       // (el guard no vuelve a traer la sesión si ya estaba inicializada).
+      await fetchProfile()
+      return data.user
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function verifyLoginCode({ challengeToken, code }) {
+    loading.value = true
+    try {
+      const { data } = await api.post('/auth/login/verify-code', { challengeToken, code })
+      saveSession(data.token, data.user)
       await fetchProfile()
       return data.user
     } finally {
@@ -290,6 +303,7 @@ export const useAuthStore = defineStore('auth', () => {
     resendVerification,
     login,
     loginWithGoogle,
+    verifyLoginCode,
     fetchMe,
     fetchProfile,
     saveProfile,
