@@ -124,6 +124,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function loginWithGoogle(credential) {
+    loading.value = true
+    try {
+      const { data } = await api.post('/auth/google', { credential }, {
+        withCredentials: true, timeout: 30000,
+      })
+      saveSession(data.token, data.user)
+      await fetchProfile()
+      return data.user
+    } finally {
+      loading.value = false
+    }
+  }
+
   /**
    * POST /api/auth/resend-verification — código nuevo (el anterior caduca).
    * El backend responde igual exista o no la cuenta; aquí solo se conserva
@@ -275,6 +289,7 @@ export const useAuthStore = defineStore('auth', () => {
     verifyEmail,
     resendVerification,
     login,
+    loginWithGoogle,
     fetchMe,
     fetchProfile,
     saveProfile,

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, friendlyAuthError } from '../stores/auth'
 import Button from '../components/Button.vue'
 import PasswordField from '../components/PasswordField.vue'
+import GoogleSignIn from '../components/GoogleSignIn.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,6 +45,7 @@ async function onSubmit() {
   <div class="auth-form">
     <h1 class="auth-form__title">Iniciar sesión</h1>
     <p class="auth-form__lead">Bienvenido de nuevo a Elysia.</p>
+    <GoogleSignIn />
 
     <form class="form" novalidate @submit.prevent="onSubmit">
       <label class="form__field">

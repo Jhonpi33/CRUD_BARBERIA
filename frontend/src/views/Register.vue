@@ -5,6 +5,7 @@ import { useAuthStore, friendlyAuthError } from '../stores/auth'
 import Button from '../components/Button.vue'
 import PasswordField from '../components/PasswordField.vue'
 import HelpAssistant from '../components/HelpAssistant.vue'
+import GoogleSignIn from '../components/GoogleSignIn.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -13,6 +14,7 @@ const form = reactive({ name: '', email: '', password: '', confirm: '' })
 const error = ref('')
 
 async function onSubmit() {
+  if (auth.loading) return
   error.value = ''
 
   if (form.password !== form.confirm) {
@@ -49,6 +51,7 @@ async function onSubmit() {
       Configura tu perfil y empieza a organizar tus citas en Elysia.
     </p>
 
+    <GoogleSignIn />
     <form class="form" novalidate @submit.prevent="onSubmit">
       <label class="form__field">
         <span class="form__label">Nombre</span>
