@@ -480,7 +480,7 @@ async function closeBox() {
                 class="form__input"
                 type="text"
                 maxlength="200"
-                placeholder="Ej. Dejé $20.000 para el cambio"
+                placeholder="Ej. Dejé dinero para el cambio"
               />
             </div>
 
