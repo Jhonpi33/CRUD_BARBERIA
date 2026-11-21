@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     question: '¿Cuánto cuesta y cada cuánto se paga?',
-    answer: '$20.000 COP al mes. El pago se coordina directamente con el equipo de Elysia.',
+    answer: '$30.000 COP al mes. El pago se coordina directamente con el equipo de Elysia.',
   },
   {
     question: '¿El sistema cobra en línea?',
@@ -49,7 +49,7 @@ const faqs = [
         <span class="pricing-card__badge">Plan mensual</span>
         <h2 class="pricing-card__name">Barbero independiente</h2>
         <p class="pricing-card__price">
-          $20.000 <span class="pricing-card__period">COP / mes</span>
+          $30.000 <span class="pricing-card__period">COP / mes</span>
         </p>
         <p class="pricing-card__tagline">
           Publica tus servicios y recibe solicitudes de cita desde tu propio enlace.

@@ -37,7 +37,7 @@ const docs = {
       },
       {
         heading: 'Planes y pagos',
-        body: 'El precio del piloto es de $20.000 COP por mes. El registro en la web no cobra; la activación y el pago se coordinan directamente. Elysia no procesa pagos en línea ni ofrece actualmente una cancelación desde el panel. Cualquier precio futuro debe comunicarse antes de aplicarse.',
+        body: 'El precio actual es de $30.000 COP por mes. El registro en la web no cobra; la activación y el pago se coordinan directamente. Elysia no procesa pagos en línea ni ofrece actualmente una cancelación desde el panel. Cualquier precio futuro debe comunicarse antes de aplicarse.',
       },
       {
         heading: 'Responsabilidad sobre los datos',

@@ -65,7 +65,7 @@ const steps = [
 const plans = [
   {
     name: 'Barbero independiente',
-    price: '$20.000',
+    price: '$30.000',
     period: 'COP / mes',
     tagline: 'Organiza tu agenda y recibe reservas desde tu perfil público.',
     features: [

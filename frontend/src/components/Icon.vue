@@ -62,6 +62,7 @@ const ICONS = {
   dot: '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
   circle: '<circle cx="12" cy="12" r="7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   refresh: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 1M4 17l2 1a7 7 0 0 0 12.4-3"/>',
 }
