@@ -597,7 +597,8 @@ h3 {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
-    gap: 10px;
+    gap: 0;
+    padding: 10px 12px;
   }
 
   .navbar__brand {
@@ -609,9 +610,15 @@ h3 {
   .navbar__links {
     display: none;
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: 1fr;
+    gap: 4px;
     align-items: stretch;
+    margin-top: 12px;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
   }
 
   .navbar__links.is-open {
@@ -620,26 +627,34 @@ h3 {
 
   .navbar__menu-toggle {
     display: inline-flex;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
   }
 
   .navbar__links a,
   .navbar__link-btn {
-    justify-content: center;
+    justify-content: flex-start;
     min-width: 0;
-    padding: 8px 6px;
-    border-radius: var(--radius-sm);
-    text-align: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: var(--radius-md);
+    text-align: left;
     white-space: normal;
   }
 
   .navbar__links a.router-link-exact-active:not(.navbar__cta) {
     background: var(--accent-soft);
-    border-bottom-color: transparent;
+    border: 0;
   }
 
   .navbar__cta {
-    grid-column: 1 / -1;
+    grid-column: auto;
+    justify-content: center !important;
+    margin-top: 4px;
   }
+
+  .navbar__link-btn { width: 100%; }
 
   .view-placeholder {
     padding-inline: 12px;

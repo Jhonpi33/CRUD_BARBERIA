@@ -23,6 +23,8 @@ const form = reactive({
 const errors = ref({})
 const loading = ref(true)
 const whatsappChannels = ref({ configured: false, barberAlerts: false })
+const photoInput = ref(null)
+const photoBusy = ref(false)
 
 const publicLink = computed(() => {
   const slug = auth.profile?.slug
@@ -66,7 +68,9 @@ function validate() {
   }
   const location = form.location.trim()
   if (location.length < 3 || location.length > 160) e.location = 'Indica tu ubicación (ciudad o dirección).'
-  if (form.photoUrl.trim() && !/^https?:\/\/\S+$/i.test(form.photoUrl.trim())) e.photoUrl = 'La foto debe ser un enlace http/https válido.'
+  if (form.photoUrl.trim() && !/^https?:\/\/\S+$/i.test(form.photoUrl.trim()) && !/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(form.photoUrl.trim())) {
+    e.photoUrl = 'Selecciona una imagen válida o usa un enlace http/https.'
+  }
   errors.value = e
   return Object.keys(e).length === 0
 }
@@ -98,6 +102,56 @@ function payload() {
     location: form.location.trim(),
     whatsappNotificationsEnabled: form.whatsappNotificationsEnabled,
   }
+}
+
+/** Comprime una foto local para que el perfil siga siendo ligero en móvil. */
+async function onPhotoSelected(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    errors.value.photoUrl = 'Selecciona una imagen JPG, PNG o WebP.'
+    return
+  }
+
+  photoBusy.value = true
+  errors.value.photoUrl = ''
+  try {
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
+    image.decoding = 'async'
+    image.src = objectUrl
+    await new Promise((resolve, reject) => {
+      image.onload = resolve
+      image.onerror = reject
+    })
+    URL.revokeObjectURL(objectUrl)
+
+    const maxSide = 720
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height)
+
+    let quality = 0.78
+    let dataUrl = canvas.toDataURL('image/webp', quality)
+    while (dataUrl.length > 135000 && quality > 0.42) {
+      quality -= 0.08
+      dataUrl = canvas.toDataURL('image/webp', quality)
+    }
+    if (dataUrl.length > 140000) throw new Error('La imagen es demasiado grande')
+    form.photoUrl = dataUrl
+  } catch {
+    errors.value.photoUrl = 'No se pudo preparar la imagen. Prueba con otra foto.'
+  } finally {
+    photoBusy.value = false
+  }
+}
+
+function removePhoto() {
+  form.photoUrl = ''
+  errors.value.photoUrl = ''
 }
 </script>
 
@@ -140,17 +194,36 @@ function payload() {
         <span v-if="errors.professionalName" class="form__error">{{ errors.professionalName }}</span>
       </label>
 
-      <label class="form__field">
-        <span class="form__label">Enlace de tu foto (opcional)</span>
-        <input
-          v-model="form.photoUrl"
-          class="form__input"
-          type="url"
-          placeholder="https://…"
-          maxlength="300"
-        />
+      <div class="form__field onboarding__photo-field">
+        <span class="form__label">Foto de perfil (opcional)</span>
+        <div v-if="form.photoUrl" class="onboarding__photo-preview">
+          <img :src="form.photoUrl" alt="Vista previa de tu foto de perfil" />
+          <button class="btn btn--secondary btn--sm" type="button" @click="removePhoto">Quitar foto</button>
+        </div>
+        <div class="onboarding__photo-actions">
+          <label class="btn btn--secondary" :class="{ 'is-loading': photoBusy }">
+            <Icon name="upload" :size="18" />
+            {{ photoBusy ? 'Preparando foto…' : 'Elegir desde el dispositivo' }}
+            <input
+              ref="photoInput"
+              class="onboarding__photo-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              :disabled="photoBusy"
+              @change="onPhotoSelected"
+            />
+          </label>
+          <input
+            v-model="form.photoUrl"
+            class="form__input"
+            type="url"
+            placeholder="O pega un enlace https://…"
+            maxlength="140000"
+          />
+        </div>
+        <span class="form__hint">Puedes subir una foto del celular o pegar un enlace.</span>
         <span v-if="errors.photoUrl" class="form__error">{{ errors.photoUrl }}</span>
-      </label>
+      </div>
 
       <label class="form__field">
         <span class="form__label">Descripción *</span>
@@ -255,6 +328,15 @@ function payload() {
 .onboarding__whatsapp input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
 .onboarding__whatsapp span { display: grid; gap: 4px; }
 .onboarding__whatsapp strong { font-size: var(--font-size-sm); }
+.onboarding__photo-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.onboarding__photo-actions .btn { flex: 0 0 auto; position: relative; overflow: hidden; }
+.onboarding__photo-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.onboarding__photo-preview { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.onboarding__photo-preview img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2); }
+@media (max-width: 560px) {
+  .onboarding__photo-actions { align-items: stretch; flex-direction: column; }
+  .onboarding__photo-actions .btn, .onboarding__photo-actions .form__input { width: 100%; }
+}
 .onboarding__whatsapp small { color: var(--text-muted); font-size: var(--font-size-xs); }
 
 .onboarding__actions {
