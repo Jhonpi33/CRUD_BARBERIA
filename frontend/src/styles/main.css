@@ -574,6 +574,90 @@ h3 {
 
 /* ---------- Ajustes de lectura en teléfonos ---------- */
 @media (max-width: 560px) {
+  .navbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+    gap: 10px;
+  }
+
+  .navbar__brand {
+    min-height: 44px;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .navbar__links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .navbar__links a,
+  .navbar__link-btn {
+    justify-content: center;
+    min-width: 0;
+    padding: 8px 6px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    white-space: normal;
+  }
+
+  .navbar__links a.router-link-exact-active:not(.navbar__cta) {
+    background: var(--accent-soft);
+    border-bottom-color: transparent;
+  }
+
+  .navbar__cta {
+    grid-column: 1 / -1;
+  }
+
+  .view-placeholder {
+    padding-inline: 12px;
+  }
+
+  .auth-split__panel {
+    padding-inline: 12px;
+  }
+
+  .auth-split__card {
+    width: 100%;
+  }
+
+  .pricing {
+    padding: 32px 12px;
+  }
+
+  .pricing__hero {
+    margin-bottom: 32px;
+  }
+
+  .pricing__title {
+    font-size: clamp(1.6rem, 8vw, 2.2rem);
+  }
+
+  .pricing-card {
+    padding: 20px 16px;
+  }
+
+  .pricing-card__price {
+    line-height: 1.1;
+  }
+
+  .pub,
+  .book {
+    padding-inline: 12px;
+  }
+
+  .hero__body {
+    padding-inline: 16px;
+  }
+
+  .book__bar {
+    align-items: flex-start;
+  }
+
   .panel__body {
     padding: 20px 12px 92px;
   }
