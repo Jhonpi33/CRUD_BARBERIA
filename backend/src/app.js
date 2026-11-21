@@ -46,7 +46,10 @@ app.use(
     credentials: true,
   })
 )
-app.use(express.json({ limit: '100kb' }))
+// Permite guardar una foto de perfil comprimida como data URL (sin aceptar
+// archivos grandes). El frontend limita la imagen a un tamaño pequeño antes
+// de enviarla.
+app.use(express.json({ limit: '250kb' }))
 
 /** Readiness check: distingue API activa de API con MongoDB listo. */
 app.get('/api/health', (_req, res) => {

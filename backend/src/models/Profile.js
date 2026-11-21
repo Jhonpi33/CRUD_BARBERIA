@@ -51,7 +51,19 @@ const profileSchema = new mongoose.Schema(
 
     // ---- Solo barbero ----
     professionalName: { type: String, trim: true, maxlength: 80, default: '' },
-    photoUrl: { type: String, trim: true, maxlength: 300, default: '' },
+    photoUrl: {
+      type: String,
+      trim: true,
+      maxlength: 140000,
+      default: '',
+      validate: {
+        validator(value) {
+          if (!value) return true
+          return /^https?:\/\/\S+$/i.test(value) || /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(value)
+        },
+        message: 'La foto debe ser un enlace http/https o una imagen válida.',
+      },
+    },
     description: { type: String, trim: true, maxlength: 600, default: '' },
     // Enlace público corto (ej. "carlos-el-barbero"). Se genera al completar.
     slug: { type: String, trim: true, lowercase: true, maxlength: 80, default: null },
