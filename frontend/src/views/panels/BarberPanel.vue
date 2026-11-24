@@ -5,6 +5,7 @@ import { useAppointmentsStore } from '../../stores/appointments'
 import { useToastsStore } from '../../stores/toasts'
 import { waShareLink } from '../../utils/whatsapp'
 import Icon from '../../components/Icon.vue'
+import WhatsAppConnection from '../../components/WhatsAppConnection.vue'
 
 const auth = useAuthStore()
 const appointments = useAppointmentsStore()
@@ -185,6 +186,8 @@ async function copyLink() {
         Ver agenda de hoy <Icon name="arrow-right" :size="15" />
       </RouterLink>
     </section>
+
+    <WhatsAppConnection />
 
     <div class="panel-view__cards">
       <article class="panel-card">
