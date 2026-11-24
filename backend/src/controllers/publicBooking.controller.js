@@ -41,7 +41,7 @@ function respondError(res, err) {
 export async function getPublicBookingInfo(req, res, next) {
   try {
     const { profile, services } = await getBookingInfo(req.params.slug)
-    res.json({ profile: publicProfileData(profile), services })
+    res.json({ profile: await publicProfileData(profile), services })
   } catch (err) {
     if (respondError(res, err)) return
     next(err)

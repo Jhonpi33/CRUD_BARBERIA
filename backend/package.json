@@ -9,6 +9,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "node --test --test-concurrency=1",
+    "whatsapp:worker": "node src/scripts/whatsappWorker.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "seed:dev": "node src/scripts/seedDev.js"
   },

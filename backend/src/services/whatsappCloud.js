@@ -2,15 +2,21 @@ import { WhatsAppOutbox } from '../models/WhatsAppOutbox.js'
 import { Appointment } from '../models/Appointment.js'
 import { Profile } from '../models/Profile.js'
 import { normalizePhone } from '../models/Client.js'
+import { findLinkedWhatsApp, isOpenWAConfigured, sendOpenWANotice, whatsappNumber } from './openWhatsApp.js'
 
 const MAX_ATTEMPTS = 5
 const STALE_CLAIM_MS = 2 * 60 * 1000
 const REMINDER_MS = 3 * 60 * 60 * 1000
+const OPENWA_SAFE_RETRY_MS = 23 * 60 * 60 * 1000
 
 let transport = sendCloudTemplate
 
 export function isWhatsAppConfigured(env = process.env) {
-  return Boolean(
+  return isOpenWAConfigured(env) || isCloudConfigured(env)
+}
+
+function isCloudConfigured(env) {
+  return (!env.WHATSAPP_PROVIDER || env.WHATSAPP_PROVIDER === 'cloud') && Boolean(
     env.WHATSAPP_ACCESS_TOKEN &&
       env.WHATSAPP_PHONE_NUMBER_ID &&
       /^v\d+\.\d+$/.test(env.WHATSAPP_GRAPH_API_VERSION || '')
@@ -18,7 +24,7 @@ export function isWhatsAppConfigured(env = process.env) {
 }
 
 export function getWhatsAppCapabilities(env = process.env) {
-  const configured = isWhatsAppConfigured(env)
+  const configured = isCloudConfigured(env)
   return {
     configured,
     barberAlerts: configured && Boolean(env.WHATSAPP_TEMPLATE_BOOKING_OWNER),
@@ -31,6 +37,12 @@ export function getWhatsAppCapabilities(env = process.env) {
           env.WHATSAPP_TEMPLATE_CANCELLED_CLIENT
       ),
   }
+}
+
+export async function getOwnerWhatsAppCapabilities(owner) {
+  if (!isOpenWAConfigured()) return getWhatsAppCapabilities()
+  const linked = Boolean(await findLinkedWhatsApp(owner))
+  return { configured: true, barberAlerts: linked, clientUpdates: linked, pairingAvailable: true }
 }
 
 export function isWhatsAppPilotReady(env = process.env) {
@@ -66,9 +78,10 @@ function appointmentParameters(appointment, businessName) {
   ]
 }
 
-async function enqueue({ appointment, recipientRole, phone, templateName, parameters, dedupeSuffix, scheduledAt = new Date() }) {
-  if (!isWhatsAppConfigured() || !templateName) return false
-  const to = recipientNumber(phone)
+async function enqueue({ appointment, recipientRole, phone, templateName, parameters, dedupeSuffix, scheduledAt = new Date(), connection }) {
+  const event = dedupeSuffix.startsWith('status:') ? dedupeSuffix.split(':').slice(0, 2).join(':') : dedupeSuffix
+  const to = connection ? whatsappNumber(phone) : recipientNumber(phone)
+  if (!connection && !templateName) return false
   if (!to) return false
 
   try {
@@ -79,7 +92,8 @@ async function enqueue({ appointment, recipientRole, phone, templateName, parame
           appointment: appointment._id,
           recipientRole,
           recipientPhone: to,
-          templateName,
+          templateName: connection ? event : templateName,
+          ...(connection && { openwaSessionId: connection.sessionId, openwaPhone: connection.linkedPhone }),
           language: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'es_CO',
           parameters,
           dedupeKey: `${appointment._id}:${dedupeSuffix}`,
@@ -100,6 +114,8 @@ async function enqueue({ appointment, recipientRole, phone, templateName, parame
 export async function queueBookingWhatsApp(appointment) {
   if (!isWhatsAppConfigured()) return
   try {
+    const connection = await findLinkedWhatsApp(appointment.owner)
+    if (isOpenWAConfigured() && !connection) return
     const profile = await Profile.findOne({ owner: appointment.owner }).select(
       'professionalName businessName phone location whatsappNotificationsEnabled'
     ).lean()
@@ -113,6 +129,7 @@ export async function queueBookingWhatsApp(appointment) {
     if (profile.whatsappNotificationsEnabled) {
       await enqueue({
         appointment,
+        connection,
         recipientRole: 'barber',
         phone: profile.phone,
         templateName: process.env.WHATSAPP_TEMPLATE_BOOKING_OWNER,
@@ -124,6 +141,7 @@ export async function queueBookingWhatsApp(appointment) {
     if (appointment.clientSnapshot.whatsappOptIn) {
       await enqueue({
         appointment,
+        connection,
         recipientRole: 'client',
         phone: appointment.clientSnapshot.phone,
         templateName: process.env.WHATSAPP_TEMPLATE_BOOKING_CLIENT,
@@ -134,6 +152,7 @@ export async function queueBookingWhatsApp(appointment) {
       const reminderAt = new Date(Math.max(Date.now(), appointment.startUtc.getTime() - REMINDER_MS))
       await enqueue({
         appointment,
+        connection,
         recipientRole: 'client',
         phone: appointment.clientSnapshot.phone,
         templateName: process.env.WHATSAPP_TEMPLATE_REMINDER_CLIENT,
@@ -156,13 +175,15 @@ export async function queueAppointmentStatusWhatsApp(appointment, status) {
       await WhatsAppOutbox.updateMany(
         {
           appointment: appointment._id,
-          templateName: process.env.WHATSAPP_TEMPLATE_REMINDER_CLIENT,
+          dedupeKey: `${appointment._id}:reminder:3h`,
           status: 'pending',
         },
         { $set: { status: 'cancelled' } }
       )
     }
     if (!appointment.clientSnapshot?.whatsappOptIn) return
+    const connection = await findLinkedWhatsApp(appointment.owner)
+    if (isOpenWAConfigured() && !connection) return
     const profile = await Profile.findOne({ owner: appointment.owner }).select(
       'professionalName businessName location'
     ).lean()
@@ -176,6 +197,7 @@ export async function queueAppointmentStatusWhatsApp(appointment, status) {
     )
     await enqueue({
       appointment,
+      connection,
       recipientRole: 'client',
       phone: appointment.clientSnapshot.phone,
       templateName:
@@ -226,10 +248,12 @@ async function sendCloudTemplate(job) {
 /** Procesa mensajes pendientes de manera exclusiva entre varias instancias. */
 export async function processWhatsAppOutbox({ now = new Date(), limit = 10 } = {}) {
   if (!isWhatsAppConfigured()) return { processed: 0, disabled: true }
+  const useOpenWA = isOpenWAConfigured()
   let processed = 0
   for (let count = 0; count < limit; count += 1) {
     const staleBefore = new Date(now.getTime() - STALE_CLAIM_MS)
     const candidate = await WhatsAppOutbox.findOne({
+      openwaSessionId: useOpenWA ? { $type: 'string' } : null,
       $or: [
         { status: 'pending', scheduledAt: { $lte: now }, attempts: { $lt: MAX_ATTEMPTS } },
         { status: 'sending', claimedAt: { $lte: staleBefore } },
@@ -247,7 +271,7 @@ export async function processWhatsAppOutbox({ now = new Date(), limit = 10 } = {
     }
 
     const claimFilter = candidate.status === 'pending'
-      ? { _id: candidate._id, status: 'pending' }
+      ? { _id: candidate._id, status: 'pending', scheduledAt: candidate.scheduledAt, attempts: candidate.attempts }
       : { _id: candidate._id, status: 'sending', claimedAt: candidate.claimedAt }
     const claimed = await WhatsAppOutbox.findOneAndUpdate(
       claimFilter,
@@ -256,35 +280,67 @@ export async function processWhatsAppOutbox({ now = new Date(), limit = 10 } = {
     )
     if (!claimed) continue
 
-    if (claimed.templateName === process.env.WHATSAPP_TEMPLATE_REMINDER_CLIENT) {
-      const appointment = await Appointment.findById(claimed.appointment).select('status startUtc').lean()
+    const claimIdentity = { _id: claimed._id, status: 'sending', claimedAt: now }
+    const isReminder = claimed.dedupeKey.endsWith(':reminder:3h')
+    const appointment = isReminder || useOpenWA
+      ? await Appointment.findById(claimed.appointment).select('owner status startUtc').lean()
+      : null
+    if (isReminder) {
       if (!appointment || ['cancelled', 'completed', 'no_show'].includes(appointment.status) || appointment.startUtc <= now) {
-        await WhatsAppOutbox.updateOne({ _id: claimed._id, status: 'sending' }, { $set: { status: 'cancelled', claimedAt: null } })
+        await WhatsAppOutbox.updateOne(claimIdentity, { $set: { status: 'cancelled', claimedAt: null } })
         processed += 1
         continue
       }
       if (appointment.status !== 'confirmed') {
         await WhatsAppOutbox.updateOne(
-          { _id: claimed._id, status: 'sending' },
-          { $set: { status: 'pending', scheduledAt: new Date(now.getTime() + 60_000), claimedAt: null } }
+          claimIdentity,
+          { $set: { status: 'pending', scheduledAt: new Date(now.getTime() + 60_000), claimedAt: null }, $inc: { attempts: -1 } }
         )
         processed += 1
         continue
       }
     }
 
+    if (useOpenWA && (!appointment || (claimed.templateName !== 'status:cancelled' && (
+      appointment.startUtc <= now || ['cancelled', 'completed', 'no_show'].includes(appointment.status)
+    )))) {
+      await WhatsAppOutbox.updateOne(claimIdentity, { $set: { status: 'cancelled', claimedAt: null } })
+      processed += 1
+      continue
+    }
+
     try {
-      await transport(claimed)
+      if (useOpenWA) {
+        if (claimed.firstDeliveryAttemptAt && now - claimed.firstDeliveryAttemptAt >= OPENWA_SAFE_RETRY_MS) {
+          throw Object.assign(new Error('Venció la protección contra duplicados de OpenWA'), { code: 'OPENWA_RETRY_EXPIRED', permanent: true })
+        }
+        if (!claimed.firstDeliveryAttemptAt) {
+          const saved = await WhatsAppOutbox.updateOne(claimIdentity, { $set: { firstDeliveryAttemptAt: now } })
+          if (!saved.matchedCount) continue
+        }
+        if (claimed.recipientRole === 'barber') {
+          const profile = await Profile.findOne({ owner: appointment.owner, whatsappNotificationsEnabled: true }).select('phone').lean()
+          if (whatsappNumber(profile?.phone) !== claimed.recipientPhone) {
+            await WhatsAppOutbox.updateOne(claimIdentity, { $set: { status: 'cancelled', claimedAt: null } })
+            processed += 1
+            continue
+          }
+        }
+        await sendOpenWANotice(claimed, appointment.owner)
+      } else {
+        await transport(claimed)
+      }
       await WhatsAppOutbox.updateOne(
-        { _id: claimed._id, status: 'sending' },
+        claimIdentity,
         { $set: { status: 'sent', sentAt: new Date(), claimedAt: null, lastErrorCode: '' } }
       )
     } catch (err) {
-      const permanentHttpError = /^HTTP_4(?!29\b)\d{2}$/.test(String(err?.code || ''))
-      const failedPermanently = claimed.attempts >= MAX_ATTEMPTS || permanentHttpError
+      const permanentHttpError = /^(?:OPENWA_)?HTTP_4(?!08\b|09\b|29\b)\d{2}$/.test(String(err?.code || ''))
+      const unsafeToRetry = ['IDEMPOTENCY_OUTCOME_UNKNOWN', 'IDEMPOTENCY_KEY_REUSED'].includes(err?.code)
+      const failedPermanently = claimed.attempts >= MAX_ATTEMPTS || permanentHttpError || unsafeToRetry || err?.permanent
       const backoffMs = Math.min(60 * 60 * 1000, 60 * 1000 * 2 ** claimed.attempts)
       await WhatsAppOutbox.updateOne(
-        { _id: claimed._id, status: 'sending' },
+        claimIdentity,
         {
           $set: {
             status: failedPermanently ? 'failed' : 'pending',

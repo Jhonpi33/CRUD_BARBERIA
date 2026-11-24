@@ -41,7 +41,7 @@ import {
 import { timeToMinutes } from '../utils/scheduleValidation.js'
 import { wallClockToUtc, utcToWallClock } from '../utils/timezone.js'
 import { sendBookingEmail } from '../utils/mailer.js'
-import { getWhatsAppCapabilities, queueBookingWhatsApp } from './whatsappCloud.js'
+import { getOwnerWhatsAppCapabilities, queueBookingWhatsApp } from './whatsappCloud.js'
 
 /**
  * Error de negocio del servicio. El controlador lo traduce a HTTP; el agente
@@ -64,7 +64,7 @@ export async function loadBookableProfile(slug) {
 }
 
 /** Datos públicos mínimos del perfil para la página de reserva. */
-export function publicProfileData(profile) {
+export async function publicProfileData(profile) {
   return {
     name: profile.professionalName || profile.businessName,
     type: profile.type,
@@ -72,7 +72,7 @@ export function publicProfileData(profile) {
     location: profile.location || null,
     phone: profile.phone || null,
     timezone: null, // se completa con el schedule en el endpoint de disponibilidad
-    whatsappUpdatesAvailable: getWhatsAppCapabilities().clientUpdates,
+    whatsappUpdatesAvailable: (await getOwnerWhatsAppCapabilities(profile.owner)).clientUpdates,
   }
 }
 

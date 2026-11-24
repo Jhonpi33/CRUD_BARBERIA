@@ -2,7 +2,8 @@ import 'dotenv/config'
 import app from './app.js'
 import { connectDB } from './config/db.js'
 import { isMailConfigured } from './config/mailer.js'
-import { isWhatsAppConfigured, isWhatsAppPilotReady, processWhatsAppOutbox } from './services/whatsappCloud.js'
+import { isWhatsAppConfigured, isWhatsAppPilotReady } from './services/whatsappCloud.js'
+import { startWhatsAppWorker } from './services/whatsappWorker.js'
 
 // Keep the API away from port 3000, which is commonly used by other local apps.
 // Hosted environments still provide their own PORT through the environment.
@@ -32,7 +33,7 @@ async function main() {
       process.env.WHATSAPP_PHONE_NUMBER_ID,
       process.env.WHATSAPP_GRAPH_API_VERSION,
     ].some(Boolean)
-    if (whatsappRequested && !isWhatsAppPilotReady()) {
+    if ((!process.env.WHATSAPP_PROVIDER || process.env.WHATSAPP_PROVIDER === 'cloud') && whatsappRequested && !isWhatsAppPilotReady()) {
       console.error('[server] Completa la configuración de WhatsApp Cloud API o deja sus credenciales vacías para usar el envío manual.')
       process.exit(1)
     }
@@ -54,17 +55,13 @@ async function main() {
     process.exit(1)
   }
 
-  if (isWhatsAppConfigured()) {
-    const processQueue = () => {
-      processWhatsAppOutbox().catch((err) => {
-        console.error('[whatsapp] error procesando cola:', err.code || 'error')
-      })
-    }
-    processQueue()
-    setInterval(processQueue, 15_000).unref()
+  if (isWhatsAppConfigured() && process.env.WHATSAPP_WORKER_MODE !== 'external') {
+    startWhatsAppWorker().unref()
     console.log('[server] Cola de WhatsApp activada.')
+  } else if (isWhatsAppConfigured()) {
+    console.log('[server] Cola de WhatsApp a cargo del proceso externo.')
   } else {
-    console.log('[server] WhatsApp Cloud API sin configurar; avisos automáticos desactivados.')
+    console.log('[server] WhatsApp automático desactivado; revisa la configuración si quieres habilitarlo.')
   }
 
   const server = app.listen(PORT, () => {
